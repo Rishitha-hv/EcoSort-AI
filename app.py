@@ -1,17 +1,33 @@
 
 import os
+
+# ==================================================
+# 1. LIMIT CPU AND THREAD USAGE
+# Must be configured before importing TensorFlow.
+# ==================================================
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
+os.environ["TF_NUM_INTEROP_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
 import io
 import csv
 import json
 import base64
 import sqlite3
+
 from datetime import datetime
 from collections import Counter
 
 import numpy as np
 import cv2
+import tensorflow as tf
 
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
+
 from flask import (
     Flask,
     render_template,
@@ -28,7 +44,15 @@ from tensorflow.keras.models import load_model
 
 
 # ==================================================
-# 1. FLASK CONFIGURATION
+# 2. TENSORFLOW CONFIGURATION
+# ==================================================
+
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+
+
+# ==================================================
+# 3. FLASK CONFIGURATION
 # ==================================================
 
 app = Flask(__name__)
@@ -40,7 +64,6 @@ app.secret_key = os.environ.get(
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# HDF5 model file for Render deployment
 MODEL_PATH = os.path.join(
     BASE_DIR,
     "waste_classifier_render.h5"
@@ -90,7 +113,7 @@ EXPECTED_CLASSES = {
 
 
 # ==================================================
-# 2. LOAD TRAINED MODEL
+# 4. LOAD TRAINED MODEL
 # ==================================================
 
 print("Loading EcoSort AI model...")
@@ -136,8 +159,7 @@ class_names = [
 if len(class_names) != model.output_shape[-1]:
 
     raise ValueError(
-        "The number of class names does not match "
-        "the model output."
+        "Number of class names does not match model output."
     )
 
 if set(class_names) != EXPECTED_CLASSES:
@@ -152,12 +174,15 @@ print("Classes:", class_names)
 
 
 # ==================================================
-# 3. DATABASE
+# 5. DATABASE
 # ==================================================
 
 def get_connection():
 
-    connection = sqlite3.connect(DATABASE)
+    connection = sqlite3.connect(
+        DATABASE,
+        timeout=20
+    )
 
     connection.row_factory = sqlite3.Row
 
@@ -192,29 +217,34 @@ def save_history(
 
     connection = get_connection()
 
-    connection.execute("""
-        INSERT INTO history
-        (filename, waste_type, confidence, source, timestamp)
-        VALUES (?, ?, ?, ?, ?)
-    """, (
-        filename,
-        waste_type,
-        round(confidence * 100, 2),
-        source,
-        datetime.now().strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
-    ))
+    try:
 
-    connection.commit()
-    connection.close()
+        connection.execute("""
+            INSERT INTO history
+            (filename, waste_type, confidence, source, timestamp)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            filename,
+            waste_type,
+            round(confidence * 100, 2),
+            source,
+            datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+        ))
+
+        connection.commit()
+
+    finally:
+
+        connection.close()
 
 
 create_database()
 
 
 # ==================================================
-# 4. FILE VALIDATION
+# 6. FILE VALIDATION
 # ==================================================
 
 def allowed_file(filename, extensions):
@@ -238,20 +268,17 @@ def create_unique_filename(original_name):
 
 
 # ==================================================
-# 5. IMAGE PREPROCESSING
+# 7. IMAGE PREPROCESSING
 # ==================================================
 
 def prepare_image(image):
-    """
-    The trained model contains its own Rescaling layer.
-
-    Pass RGB pixel values in the 0-255 range.
-    Do not apply preprocess_input() here.
-    """
 
     image = image.convert("RGB")
 
-    image = image.resize(IMAGE_SIZE)
+    image = image.resize(
+        IMAGE_SIZE,
+        Image.Resampling.BILINEAR
+    )
 
     image_array = np.asarray(
         image,
@@ -267,17 +294,18 @@ def prepare_image(image):
 
 
 # ==================================================
-# 6. WASTE CLASSIFICATION
+# 8. WASTE CLASSIFICATION
 # ==================================================
 
 def classify_image(image):
 
     processed_image = prepare_image(image)
 
-    predictions = model.predict(
+    # Direct inference instead of model.predict().
+    predictions = model(
         processed_image,
-        verbose=0
-    )[0]
+        training=False
+    ).numpy()[0]
 
     predictions = np.asarray(
         predictions,
@@ -288,7 +316,7 @@ def classify_image(image):
 
         return "Unknown Item", 0.0
 
-    # Convert logits to probabilities if necessary.
+    # Convert logits into probabilities if required.
     if (
         np.min(predictions) < 0
         or np.max(predictions) > 1
@@ -307,9 +335,13 @@ def classify_image(image):
             exp_values / np.sum(exp_values)
         )
 
-    sorted_indices = np.argsort(predictions)[::-1]
+    sorted_indices = np.argsort(
+        predictions
+    )[::-1]
 
-    best_index = int(sorted_indices[0])
+    best_index = int(
+        sorted_indices[0]
+    )
 
     confidence = float(
         predictions[best_index]
@@ -319,7 +351,9 @@ def classify_image(image):
         predictions[sorted_indices[1]]
     )
 
-    margin = confidence - second_confidence
+    margin = (
+        confidence - second_confidence
+    )
 
     predicted_class = class_names[best_index]
 
@@ -335,7 +369,7 @@ def classify_image(image):
 
 
 # ==================================================
-# 7. SAVE IMAGE
+# 9. SAVE IMAGE
 # ==================================================
 
 def save_image(image, filename):
@@ -347,14 +381,15 @@ def save_image(image, filename):
 
     image.save(
         filepath,
-        format="JPEG"
+        format="JPEG",
+        quality=85
     )
 
     return filepath
 
 
 # ==================================================
-# 8. HOME PAGE
+# 10. HOME PAGE
 # ==================================================
 
 @app.route("/")
@@ -362,23 +397,27 @@ def home():
 
     connection = get_connection()
 
-    total = connection.execute(
-        "SELECT COUNT(*) FROM history"
-    ).fetchone()[0]
+    try:
 
-    records = connection.execute("""
-        SELECT * FROM history
-        ORDER BY id DESC
-        LIMIT 5
-    """).fetchall()
+        total = connection.execute(
+            "SELECT COUNT(*) FROM history"
+        ).fetchone()[0]
 
-    counts = connection.execute("""
-        SELECT waste_type, COUNT(*) AS total
-        FROM history
-        GROUP BY waste_type
-    """).fetchall()
+        records = connection.execute("""
+            SELECT * FROM history
+            ORDER BY id DESC
+            LIMIT 5
+        """).fetchall()
 
-    connection.close()
+        counts = connection.execute("""
+            SELECT waste_type, COUNT(*) AS total
+            FROM history
+            GROUP BY waste_type
+        """).fetchall()
+
+    finally:
+
+        connection.close()
 
     waste_counts = {
         row["waste_type"]: row["total"]
@@ -394,7 +433,7 @@ def home():
 
 
 # ==================================================
-# 9. IMAGE CLASSIFICATION
+# 11. IMAGE CLASSIFICATION
 # ==================================================
 
 @app.route("/classify", methods=["GET", "POST"])
@@ -463,6 +502,14 @@ def classify():
                 )
             )
 
+        except (UnidentifiedImageError, OSError):
+
+            flash("The uploaded file is not a valid image.")
+
+            return redirect(
+                url_for("classify")
+            )
+
         except Exception:
 
             app.logger.exception(
@@ -475,11 +522,13 @@ def classify():
                 url_for("classify")
             )
 
-    return render_template("classify.html")
+    return render_template(
+        "classify.html"
+    )
 
 
 # ==================================================
-# 10. CAMERA CAPTURE
+# 12. CAMERA CAPTURE
 # ==================================================
 
 @app.route("/camera", methods=["GET", "POST"])
@@ -552,25 +601,33 @@ def camera():
                 )
             )
 
+        except (UnidentifiedImageError, OSError, ValueError):
+
+            flash("The captured image is invalid. Please try again.")
+
+            return redirect(
+                url_for("camera")
+            )
+
         except Exception:
 
             app.logger.exception(
                 "Camera processing error"
             )
 
-            flash(
-                "Unable to process the captured image."
-            )
+            flash("Unable to process the captured image.")
 
             return redirect(
                 url_for("camera")
             )
 
-    return render_template("camera.html")
+    return render_template(
+        "camera.html"
+    )
 
 
 # ==================================================
-# 11. VIDEO CLASSIFICATION
+# 13. VIDEO CLASSIFICATION
 # ==================================================
 
 @app.route("/video", methods=["GET", "POST"])
@@ -608,27 +665,32 @@ def video():
             filename
         )
 
-        file.save(filepath)
-
-        capture = cv2.VideoCapture(filepath)
-
-        if not capture.isOpened():
-
-            capture.release()
-
-            flash("Unable to open video.")
-
-            return redirect(
-                url_for("video")
-            )
-
-        results = []
-
-        frame_number = 0
+        capture = None
 
         try:
 
-            while frame_number < 10000:
+            file.save(filepath)
+
+            capture = cv2.VideoCapture(
+                filepath
+            )
+
+            if not capture.isOpened():
+
+                flash("Unable to open video.")
+
+                return redirect(
+                    url_for("video")
+                )
+
+            results = []
+
+            frame_number = 0
+
+            # Limit video processing to 300 frames.
+            max_frames = 300
+
+            while frame_number < max_frames:
 
                 success, frame = capture.read()
 
@@ -670,6 +732,30 @@ def video():
                     f"Video Frame {frame_number}"
                 )
 
+            if not results:
+
+                flash(
+                    "No video frames were available for analysis."
+                )
+
+                return redirect(
+                    url_for("video")
+                )
+
+            summary = dict(
+                Counter(
+                    item["waste_type"]
+                    for item in results
+                )
+            )
+
+            return render_template(
+                "video_result.html",
+                results=results,
+                summary=summary,
+                total_frames=len(results)
+            )
+
         except Exception:
 
             app.logger.exception(
@@ -684,37 +770,16 @@ def video():
 
         finally:
 
-            capture.release()
+            if capture is not None:
+                capture.release()
 
-        if not results:
-
-            flash(
-                "No video frames were available for analysis."
-            )
-
-            return redirect(
-                url_for("video")
-            )
-
-        summary = dict(
-            Counter(
-                item["waste_type"]
-                for item in results
-            )
-        )
-
-        return render_template(
-            "video_result.html",
-            results=results,
-            summary=summary,
-            total_frames=len(results)
-        )
-
-    return render_template("video.html")
+    return render_template(
+        "video.html"
+    )
 
 
 # ==================================================
-# 12. CLASSIFICATION HISTORY
+# 14. CLASSIFICATION HISTORY
 # ==================================================
 
 @app.route("/history")
@@ -722,12 +787,16 @@ def history():
 
     connection = get_connection()
 
-    records = connection.execute("""
-        SELECT * FROM history
-        ORDER BY id DESC
-    """).fetchall()
+    try:
 
-    connection.close()
+        records = connection.execute("""
+            SELECT * FROM history
+            ORDER BY id DESC
+        """).fetchall()
+
+    finally:
+
+        connection.close()
 
     return render_template(
         "history.html",
@@ -736,7 +805,7 @@ def history():
 
 
 # ==================================================
-# 13. REPORTS
+# 15. REPORTS
 # ==================================================
 
 @app.route("/reports")
@@ -744,17 +813,21 @@ def reports():
 
     connection = get_connection()
 
-    counts = connection.execute("""
-        SELECT waste_type, COUNT(*) AS total
-        FROM history
-        GROUP BY waste_type
-    """).fetchall()
+    try:
 
-    total = connection.execute(
-        "SELECT COUNT(*) FROM history"
-    ).fetchone()[0]
+        counts = connection.execute("""
+            SELECT waste_type, COUNT(*) AS total
+            FROM history
+            GROUP BY waste_type
+        """).fetchall()
 
-    connection.close()
+        total = connection.execute(
+            "SELECT COUNT(*) FROM history"
+        ).fetchone()[0]
+
+    finally:
+
+        connection.close()
 
     waste_counts = {
         row["waste_type"]: row["total"]
@@ -769,7 +842,7 @@ def reports():
 
 
 # ==================================================
-# 14. CSV REPORT DOWNLOAD
+# 16. CSV REPORT DOWNLOAD
 # ==================================================
 
 @app.route("/download-report")
@@ -777,12 +850,16 @@ def download_report():
 
     connection = get_connection()
 
-    records = connection.execute("""
-        SELECT * FROM history
-        ORDER BY id DESC
-    """).fetchall()
+    try:
 
-    connection.close()
+        records = connection.execute("""
+            SELECT * FROM history
+            ORDER BY id DESC
+        """).fetchall()
+
+    finally:
+
+        connection.close()
 
     output = io.StringIO()
 
@@ -819,7 +896,7 @@ def download_report():
 
 
 # ==================================================
-# 15. DISPLAY UPLOADED IMAGES
+# 17. DISPLAY UPLOADED IMAGES
 # ==================================================
 
 @app.route("/uploads/<filename>")
@@ -832,7 +909,7 @@ def uploaded_file(filename):
 
 
 # ==================================================
-# 16. CLEAR HISTORY
+# 18. CLEAR HISTORY
 # ==================================================
 
 @app.route("/clear-history", methods=["POST"])
@@ -840,12 +917,17 @@ def clear_history():
 
     connection = get_connection()
 
-    connection.execute(
-        "DELETE FROM history"
-    )
+    try:
 
-    connection.commit()
-    connection.close()
+        connection.execute(
+            "DELETE FROM history"
+        )
+
+        connection.commit()
+
+    finally:
+
+        connection.close()
 
     flash("Classification history cleared.")
 
@@ -855,7 +937,22 @@ def clear_history():
 
 
 # ==================================================
-# 17. ERROR HANDLERS
+# 19. HEALTH CHECK
+# ==================================================
+
+@app.route("/health")
+def health():
+
+    return {
+        "status": "running",
+        "application": "EcoSort AI",
+        "model_loaded": model is not None,
+        "classes": class_names
+    }
+
+
+# ==================================================
+# 20. ERROR HANDLERS
 # ==================================================
 
 @app.errorhandler(413)
@@ -870,17 +967,8 @@ def file_too_large(error):
     )
 
 
-@app.route("/health")
-def health():
-
-    return {
-        "status": "running",
-        "application": "EcoSort AI"
-    }
-
-
 # ==================================================
-# 18. RUN APPLICATION
+# 21. RUN APPLICATION
 # ==================================================
 
 if __name__ == "__main__":
@@ -898,5 +986,6 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=port,
-        debug=False
+        debug=False,
+        threaded=False
     )

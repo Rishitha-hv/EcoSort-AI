@@ -40,29 +40,44 @@ app.secret_key = os.environ.get(
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Updated model filename for Render deployment
+# HDF5 model file for Render deployment
 MODEL_PATH = os.path.join(
     BASE_DIR,
-    "waste_classifier_fixed.keras"
+    "waste_classifier_render.h5"
 )
 
-CLASS_FILE = os.path.join(BASE_DIR, "class_names.json")
+CLASS_FILE = os.path.join(
+    BASE_DIR,
+    "class_names.json"
+)
 
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+UPLOAD_FOLDER = os.path.join(
+    BASE_DIR,
+    "uploads"
+)
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024
 
-DATABASE = os.path.join(BASE_DIR, "database.db")
+DATABASE = os.path.join(
+    BASE_DIR,
+    "database.db"
+)
 
 IMAGE_SIZE = (160, 160)
 
 CONFIDENCE_THRESHOLD = 0.65
 MARGIN_THRESHOLD = 0.15
 
-ALLOWED_IMAGES = {"jpg", "jpeg", "png", "webp"}
-ALLOWED_VIDEOS = {"mp4", "avi", "mov", "mkv"}
+ALLOWED_IMAGES = {
+    "jpg", "jpeg", "png", "webp"
+}
+
+ALLOWED_VIDEOS = {
+    "mp4", "avi", "mov", "mkv"
+}
 
 EXPECTED_CLASSES = {
     "cardboard",
@@ -90,28 +105,43 @@ if not os.path.exists(CLASS_FILE):
         f"Class file not found: {CLASS_FILE}"
     )
 
-model = load_model(MODEL_PATH)
+model = load_model(
+    MODEL_PATH,
+    compile=False
+)
 
-with open(CLASS_FILE, "r", encoding="utf-8") as file:
+with open(
+    CLASS_FILE,
+    "r",
+    encoding="utf-8"
+) as file:
+
     class_names = json.load(file)
 
 if isinstance(class_names, dict):
+
     class_names = [
         name for name, index in
-        sorted(class_names.items(), key=lambda item: item[1])
+        sorted(
+            class_names.items(),
+            key=lambda item: item[1]
+        )
     ]
 
 class_names = [
-    str(name).lower() for name in class_names
+    str(name).lower()
+    for name in class_names
 ]
 
 if len(class_names) != model.output_shape[-1]:
+
     raise ValueError(
         "The number of class names does not match "
         "the model output."
     )
 
 if set(class_names) != EXPECTED_CLASSES:
+
     raise ValueError(
         f"Expected classes: {sorted(EXPECTED_CLASSES)}. "
         f"Found: {class_names}"
@@ -126,8 +156,11 @@ print("Classes:", class_names)
 # ==================================================
 
 def get_connection():
+
     connection = sqlite3.connect(DATABASE)
+
     connection.row_factory = sqlite3.Row
+
     return connection
 
 
@@ -150,7 +183,12 @@ def create_database():
     connection.close()
 
 
-def save_history(filename, waste_type, confidence, source):
+def save_history(
+    filename,
+    waste_type,
+    confidence,
+    source
+):
 
     connection = get_connection()
 
@@ -163,7 +201,9 @@ def save_history(filename, waste_type, confidence, source):
         waste_type,
         round(confidence * 100, 2),
         source,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
     ))
 
     connection.commit()
@@ -181,7 +221,8 @@ def allowed_file(filename, extensions):
 
     return (
         "." in filename
-        and filename.rsplit(".", 1)[1].lower() in extensions
+        and filename.rsplit(".", 1)[1].lower()
+        in extensions
     )
 
 
@@ -209,6 +250,7 @@ def prepare_image(image):
     """
 
     image = image.convert("RGB")
+
     image = image.resize(IMAGE_SIZE)
 
     image_array = np.asarray(
@@ -243,6 +285,7 @@ def classify_image(image):
     )
 
     if not np.all(np.isfinite(predictions)):
+
         return "Unknown Item", 0.0
 
     # Convert logits to probabilities if necessary.
@@ -260,13 +303,17 @@ def classify_image(image):
 
         exp_values = np.exp(shifted)
 
-        predictions = exp_values / np.sum(exp_values)
+        predictions = (
+            exp_values / np.sum(exp_values)
+        )
 
     sorted_indices = np.argsort(predictions)[::-1]
 
     best_index = int(sorted_indices[0])
 
-    confidence = float(predictions[best_index])
+    confidence = float(
+        predictions[best_index]
+    )
 
     second_confidence = float(
         predictions[sorted_indices[1]]
@@ -281,6 +328,7 @@ def classify_image(image):
         confidence < CONFIDENCE_THRESHOLD
         or margin < MARGIN_THRESHOLD
     ):
+
         return "Unknown Item", confidence
 
     return predicted_class.title(), confidence
@@ -297,7 +345,10 @@ def save_image(image, filename):
         filename
     )
 
-    image.save(filepath, format="JPEG")
+    image.save(
+        filepath,
+        format="JPEG"
+    )
 
     return filepath
 
@@ -354,12 +405,23 @@ def classify():
         file = request.files.get("image")
 
         if not file or not file.filename:
-            flash("Please select an image.")
-            return redirect(url_for("classify"))
 
-        if not allowed_file(file.filename, ALLOWED_IMAGES):
+            flash("Please select an image.")
+
+            return redirect(
+                url_for("classify")
+            )
+
+        if not allowed_file(
+            file.filename,
+            ALLOWED_IMAGES
+        ):
+
             flash("Please upload a valid image.")
-            return redirect(url_for("classify"))
+
+            return redirect(
+                url_for("classify")
+            )
 
         try:
 
@@ -371,9 +433,14 @@ def classify():
                 file.filename
             )
 
-            save_image(image, filename)
+            save_image(
+                image,
+                filename
+            )
 
-            predicted_class, confidence = classify_image(image)
+            predicted_class, confidence = classify_image(
+                image
+            )
 
             save_history(
                 filename,
@@ -390,7 +457,10 @@ def classify():
                     filename=filename
                 ),
                 predicted_class=predicted_class,
-                confidence=round(confidence * 100, 2)
+                confidence=round(
+                    confidence * 100,
+                    2
+                )
             )
 
         except Exception:
@@ -401,7 +471,9 @@ def classify():
 
             flash("Unable to process the image.")
 
-            return redirect(url_for("classify"))
+            return redirect(
+                url_for("classify")
+            )
 
     return render_template("classify.html")
 
@@ -415,15 +487,27 @@ def camera():
 
     if request.method == "POST":
 
-        image_data = request.form.get("camera_image")
+        image_data = request.form.get(
+            "camera_image"
+        )
 
-        if not image_data or "," not in image_data:
+        if (
+            not image_data
+            or "," not in image_data
+        ):
+
             flash("Please capture an image.")
-            return redirect(url_for("camera"))
+
+            return redirect(
+                url_for("camera")
+            )
 
         try:
 
-            encoded_image = image_data.split(",", 1)[1]
+            encoded_image = image_data.split(
+                ",",
+                1
+            )[1]
 
             image_bytes = base64.b64decode(
                 encoded_image,
@@ -438,9 +522,14 @@ def camera():
                 "camera.jpg"
             )
 
-            save_image(image, filename)
+            save_image(
+                image,
+                filename
+            )
 
-            predicted_class, confidence = classify_image(image)
+            predicted_class, confidence = classify_image(
+                image
+            )
 
             save_history(
                 filename,
@@ -457,7 +546,10 @@ def camera():
                     filename=filename
                 ),
                 predicted_class=predicted_class,
-                confidence=round(confidence * 100, 2)
+                confidence=round(
+                    confidence * 100,
+                    2
+                )
             )
 
         except Exception:
@@ -466,9 +558,13 @@ def camera():
                 "Camera processing error"
             )
 
-            flash("Unable to process the captured image.")
+            flash(
+                "Unable to process the captured image."
+            )
 
-            return redirect(url_for("camera"))
+            return redirect(
+                url_for("camera")
+            )
 
     return render_template("camera.html")
 
@@ -485,14 +581,27 @@ def video():
         file = request.files.get("video")
 
         if not file or not file.filename:
+
             flash("Please select a video.")
-            return redirect(url_for("video"))
 
-        if not allowed_file(file.filename, ALLOWED_VIDEOS):
+            return redirect(
+                url_for("video")
+            )
+
+        if not allowed_file(
+            file.filename,
+            ALLOWED_VIDEOS
+        ):
+
             flash("Please upload a supported video.")
-            return redirect(url_for("video"))
 
-        filename = create_unique_filename(file.filename)
+            return redirect(
+                url_for("video")
+            )
+
+        filename = create_unique_filename(
+            file.filename
+        )
 
         filepath = os.path.join(
             UPLOAD_FOLDER,
@@ -509,9 +618,12 @@ def video():
 
             flash("Unable to open video.")
 
-            return redirect(url_for("video"))
+            return redirect(
+                url_for("video")
+            )
 
         results = []
+
         frame_number = 0
 
         try:
@@ -534,14 +646,21 @@ def video():
                     cv2.COLOR_BGR2RGB
                 )
 
-                image = Image.fromarray(frame_rgb)
+                image = Image.fromarray(
+                    frame_rgb
+                )
 
-                predicted_class, confidence = classify_image(image)
+                predicted_class, confidence = classify_image(
+                    image
+                )
 
                 results.append({
                     "frame": frame_number,
                     "waste_type": predicted_class,
-                    "confidence": round(confidence * 100, 2)
+                    "confidence": round(
+                        confidence * 100,
+                        2
+                    )
                 })
 
                 save_history(
@@ -559,7 +678,9 @@ def video():
 
             flash("Unable to analyze the video.")
 
-            return redirect(url_for("video"))
+            return redirect(
+                url_for("video")
+            )
 
         finally:
 
@@ -571,7 +692,9 @@ def video():
                 "No video frames were available for analysis."
             )
 
-            return redirect(url_for("video"))
+            return redirect(
+                url_for("video")
+            )
 
         summary = dict(
             Counter(
@@ -717,14 +840,18 @@ def clear_history():
 
     connection = get_connection()
 
-    connection.execute("DELETE FROM history")
+    connection.execute(
+        "DELETE FROM history"
+    )
 
     connection.commit()
     connection.close()
 
     flash("Classification history cleared.")
 
-    return redirect(url_for("history"))
+    return redirect(
+        url_for("history")
+    )
 
 
 # ==================================================
@@ -734,9 +861,13 @@ def clear_history():
 @app.errorhandler(413)
 def file_too_large(error):
 
-    flash("File size exceeds the 100 MB limit.")
+    flash(
+        "File size exceeds the 100 MB limit."
+    )
 
-    return redirect(url_for("home"))
+    return redirect(
+        url_for("home")
+    )
 
 
 @app.route("/health")
@@ -754,7 +885,9 @@ def health():
 
 if __name__ == "__main__":
 
-    port = int(os.environ.get("PORT", 5000))
+    port = int(
+        os.environ.get("PORT", 5000)
+    )
 
     print("-----------------------------------")
     print("          ECOSORT AI WEBSITE")

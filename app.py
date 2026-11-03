@@ -40,7 +40,12 @@ app.secret_key = os.environ.get(
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-MODEL_PATH = os.path.join(BASE_DIR, "waste_classifier.keras")
+# Updated model filename for Render deployment
+MODEL_PATH = os.path.join(
+    BASE_DIR,
+    "waste_classifier_fixed.keras"
+)
+
 CLASS_FILE = os.path.join(BASE_DIR, "class_names.json")
 
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
@@ -76,10 +81,14 @@ EXPECTED_CLASSES = {
 print("Loading EcoSort AI model...")
 
 if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(f"Model not found: {MODEL_PATH}")
+    raise FileNotFoundError(
+        f"Model not found: {MODEL_PATH}"
+    )
 
 if not os.path.exists(CLASS_FILE):
-    raise FileNotFoundError(f"Class file not found: {CLASS_FILE}")
+    raise FileNotFoundError(
+        f"Class file not found: {CLASS_FILE}"
+    )
 
 model = load_model(MODEL_PATH)
 
@@ -92,11 +101,14 @@ if isinstance(class_names, dict):
         sorted(class_names.items(), key=lambda item: item[1])
     ]
 
-class_names = [str(name).lower() for name in class_names]
+class_names = [
+    str(name).lower() for name in class_names
+]
 
 if len(class_names) != model.output_shape[-1]:
     raise ValueError(
-        "The number of class names does not match the model output."
+        "The number of class names does not match "
+        "the model output."
     )
 
 if set(class_names) != EXPECTED_CLASSES:
@@ -120,6 +132,7 @@ def get_connection():
 
 
 def create_database():
+
     connection = get_connection()
 
     connection.execute("""
@@ -138,6 +151,7 @@ def create_database():
 
 
 def save_history(filename, waste_type, confidence, source):
+
     connection = get_connection()
 
     connection.execute("""
@@ -164,6 +178,7 @@ create_database()
 # ==================================================
 
 def allowed_file(filename, extensions):
+
     return (
         "." in filename
         and filename.rsplit(".", 1)[1].lower() in extensions
@@ -171,9 +186,12 @@ def allowed_file(filename, extensions):
 
 
 def create_unique_filename(original_name):
+
     safe_name = secure_filename(original_name)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S_%f"
+    )
 
     return f"{timestamp}_{safe_name}"
 
@@ -185,7 +203,8 @@ def create_unique_filename(original_name):
 def prepare_image(image):
     """
     The trained model contains its own Rescaling layer.
-    Therefore, pass RGB pixel values in the 0-255 range.
+
+    Pass RGB pixel values in the 0-255 range.
     Do not apply preprocess_input() here.
     """
 
@@ -236,8 +255,11 @@ def classify_image(image):
             atol=0.01
         )
     ):
+
         shifted = predictions - np.max(predictions)
+
         exp_values = np.exp(shifted)
+
         predictions = exp_values / np.sum(exp_values)
 
     sorted_indices = np.argsort(predictions)[::-1]
@@ -254,7 +276,7 @@ def classify_image(image):
 
     predicted_class = class_names[best_index]
 
-    # Unknown Item rejection.
+    # Unknown item rejection.
     if (
         confidence < CONFIDENCE_THRESHOLD
         or margin < MARGIN_THRESHOLD
@@ -269,6 +291,7 @@ def classify_image(image):
 # ==================================================
 
 def save_image(image, filename):
+
     filepath = os.path.join(
         UPLOAD_FOLDER,
         filename
@@ -339,9 +362,14 @@ def classify():
             return redirect(url_for("classify"))
 
         try:
-            image = Image.open(file.stream).convert("RGB")
 
-            filename = create_unique_filename(file.filename)
+            image = Image.open(
+                file.stream
+            ).convert("RGB")
+
+            filename = create_unique_filename(
+                file.filename
+            )
 
             save_image(image, filename)
 
@@ -366,8 +394,13 @@ def classify():
             )
 
         except Exception:
-            app.logger.exception("Image classification error")
+
+            app.logger.exception(
+                "Image classification error"
+            )
+
             flash("Unable to process the image.")
+
             return redirect(url_for("classify"))
 
     return render_template("classify.html")
@@ -389,6 +422,7 @@ def camera():
             return redirect(url_for("camera"))
 
         try:
+
             encoded_image = image_data.split(",", 1)[1]
 
             image_bytes = base64.b64decode(
@@ -400,7 +434,9 @@ def camera():
                 io.BytesIO(image_bytes)
             ).convert("RGB")
 
-            filename = create_unique_filename("camera.jpg")
+            filename = create_unique_filename(
+                "camera.jpg"
+            )
 
             save_image(image, filename)
 
@@ -425,8 +461,13 @@ def camera():
             )
 
         except Exception:
-            app.logger.exception("Camera processing error")
+
+            app.logger.exception(
+                "Camera processing error"
+            )
+
             flash("Unable to process the captured image.")
+
             return redirect(url_for("camera"))
 
     return render_template("camera.html")
@@ -463,14 +504,18 @@ def video():
         capture = cv2.VideoCapture(filepath)
 
         if not capture.isOpened():
+
             capture.release()
+
             flash("Unable to open video.")
+
             return redirect(url_for("video"))
 
         results = []
         frame_number = 0
 
         try:
+
             while frame_number < 10000:
 
                 success, frame = capture.read()
@@ -507,15 +552,25 @@ def video():
                 )
 
         except Exception:
-            app.logger.exception("Video processing error")
+
+            app.logger.exception(
+                "Video processing error"
+            )
+
             flash("Unable to analyze the video.")
+
             return redirect(url_for("video"))
 
         finally:
+
             capture.release()
 
         if not results:
-            flash("No video frames were available for analysis.")
+
+            flash(
+                "No video frames were available for analysis."
+            )
+
             return redirect(url_for("video"))
 
         summary = dict(
@@ -620,6 +675,7 @@ def download_report():
     ])
 
     for row in records:
+
         writer.writerow([
             row["id"],
             row["filename"],

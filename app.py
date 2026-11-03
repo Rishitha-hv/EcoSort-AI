@@ -2,14 +2,10 @@
 import os
 
 # ==================================================
-# 1. LIMIT CPU AND THREAD USAGE
-# Must be configured before importing TensorFlow.
+# 1. LIMIT CPU THREAD USAGE
 # ==================================================
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
-os.environ["TF_NUM_INTEROP_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
@@ -18,15 +14,17 @@ import csv
 import json
 import base64
 import sqlite3
+import threading
 
 from datetime import datetime
 from collections import Counter
 
 import numpy as np
 import cv2
-import tensorflow as tf
 
 from PIL import Image, UnidentifiedImageError
+
+from ai_edge_litert.interpreter import Interpreter
 
 from flask import (
     Flask,
@@ -40,19 +38,10 @@ from flask import (
 )
 
 from werkzeug.utils import secure_filename
-from tensorflow.keras.models import load_model
 
 
 # ==================================================
-# 2. TENSORFLOW CONFIGURATION
-# ==================================================
-
-tf.config.threading.set_intra_op_parallelism_threads(1)
-tf.config.threading.set_inter_op_parallelism_threads(1)
-
-
-# ==================================================
-# 3. FLASK CONFIGURATION
+# 2. FLASK CONFIGURATION
 # ==================================================
 
 app = Flask(__name__)
@@ -66,7 +55,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 MODEL_PATH = os.path.join(
     BASE_DIR,
-    "waste_classifier_render.h5"
+    "waste_classifier.tflite"
 )
 
 CLASS_FILE = os.path.join(
@@ -113,14 +102,14 @@ EXPECTED_CLASSES = {
 
 
 # ==================================================
-# 4. LOAD TRAINED MODEL
+# 3. LOAD TFLITE MODEL
 # ==================================================
 
-print("Loading EcoSort AI model...")
+print("Loading EcoSort AI TFLite model...")
 
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(
-        f"Model not found: {MODEL_PATH}"
+        f"TFLite model not found: {MODEL_PATH}"
     )
 
 if not os.path.exists(CLASS_FILE):
@@ -128,21 +117,32 @@ if not os.path.exists(CLASS_FILE):
         f"Class file not found: {CLASS_FILE}"
     )
 
-model = load_model(
-    MODEL_PATH,
-    compile=False
+interpreter = Interpreter(
+    model_path=MODEL_PATH,
+    num_threads=1
 )
+
+interpreter.allocate_tensors()
+
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
+input_index = input_details[0]["index"]
+output_index = output_details[0]["index"]
+
+input_dtype = input_details[0]["dtype"]
+input_shape = input_details[0]["shape"]
+
+output_shape = output_details[0]["shape"]
 
 with open(
     CLASS_FILE,
     "r",
     encoding="utf-8"
 ) as file:
-
     class_names = json.load(file)
 
 if isinstance(class_names, dict):
-
     class_names = [
         name for name, index in
         sorted(
@@ -156,25 +156,28 @@ class_names = [
     for name in class_names
 ]
 
-if len(class_names) != model.output_shape[-1]:
-
-    raise ValueError(
-        "Number of class names does not match model output."
-    )
-
 if set(class_names) != EXPECTED_CLASSES:
-
     raise ValueError(
         f"Expected classes: {sorted(EXPECTED_CLASSES)}. "
         f"Found: {class_names}"
     )
 
-print("Model loaded successfully!")
+if len(class_names) != int(output_shape[-1]):
+    raise ValueError(
+        "Number of class names does not match TFLite output."
+    )
+
+# Protect the interpreter during inference.
+inference_lock = threading.Lock()
+
+print("TFLite model loaded successfully!")
+print("Input shape:", input_shape)
+print("Output shape:", output_shape)
 print("Classes:", class_names)
 
 
 # ==================================================
-# 5. DATABASE
+# 4. DATABASE
 # ==================================================
 
 def get_connection():
@@ -193,19 +196,22 @@ def create_database():
 
     connection = get_connection()
 
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT,
-            waste_type TEXT,
-            confidence REAL,
-            source TEXT,
-            timestamp TEXT
-        )
-    """)
+    try:
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filename TEXT,
+                waste_type TEXT,
+                confidence REAL,
+                source TEXT,
+                timestamp TEXT
+            )
+        """)
 
-    connection.commit()
-    connection.close()
+        connection.commit()
+
+    finally:
+        connection.close()
 
 
 def save_history(
@@ -218,7 +224,6 @@ def save_history(
     connection = get_connection()
 
     try:
-
         connection.execute("""
             INSERT INTO history
             (filename, waste_type, confidence, source, timestamp)
@@ -236,7 +241,6 @@ def save_history(
         connection.commit()
 
     finally:
-
         connection.close()
 
 
@@ -244,7 +248,7 @@ create_database()
 
 
 # ==================================================
-# 6. FILE VALIDATION
+# 5. FILE VALIDATION
 # ==================================================
 
 def allowed_file(filename, extensions):
@@ -268,7 +272,7 @@ def create_unique_filename(original_name):
 
 
 # ==================================================
-# 7. IMAGE PREPROCESSING
+# 6. IMAGE PREPROCESSING
 # ==================================================
 
 def prepare_image(image):
@@ -294,6 +298,75 @@ def prepare_image(image):
 
 
 # ==================================================
+# 7. TFLITE INFERENCE
+# ==================================================
+
+def run_tflite_inference(processed_image):
+
+    input_info = input_details[0]
+    output_info = output_details[0]
+
+    expected_dtype = input_info["dtype"]
+
+    # Handle quantized input if present.
+    if expected_dtype == np.float32:
+        model_input = processed_image.astype(np.float32)
+
+    elif expected_dtype in (np.uint8, np.int8):
+
+        scale, zero_point = input_info["quantization"]
+
+        if scale == 0:
+            raise ValueError(
+                "Invalid input quantization scale."
+            )
+
+        model_input = np.round(
+            processed_image / scale + zero_point
+        )
+
+        limits = np.iinfo(expected_dtype)
+
+        model_input = np.clip(
+            model_input,
+            limits.min,
+            limits.max
+        ).astype(expected_dtype)
+
+    else:
+        raise ValueError(
+            f"Unsupported model input type: {expected_dtype}"
+        )
+
+    with inference_lock:
+
+        interpreter.set_tensor(
+            input_info["index"],
+            model_input
+        )
+
+        interpreter.invoke()
+
+        predictions = interpreter.get_tensor(
+            output_info["index"]
+        )[0]
+
+    # Dequantize output if necessary.
+    if output_info["dtype"] in (np.uint8, np.int8):
+
+        scale, zero_point = output_info["quantization"]
+
+        predictions = (
+            predictions.astype(np.float32) - zero_point
+        ) * scale
+
+    return np.asarray(
+        predictions,
+        dtype=np.float32
+    )
+
+
+# ==================================================
 # 8. WASTE CLASSIFICATION
 # ==================================================
 
@@ -301,19 +374,11 @@ def classify_image(image):
 
     processed_image = prepare_image(image)
 
-    # Direct inference instead of model.predict().
-    predictions = model(
-        processed_image,
-        training=False
-    ).numpy()[0]
-
-    predictions = np.asarray(
-        predictions,
-        dtype=np.float32
+    predictions = run_tflite_inference(
+        processed_image
     )
 
     if not np.all(np.isfinite(predictions)):
-
         return "Unknown Item", 0.0
 
     # Convert logits into probabilities if required.
@@ -339,9 +404,7 @@ def classify_image(image):
         predictions
     )[::-1]
 
-    best_index = int(
-        sorted_indices[0]
-    )
+    best_index = int(sorted_indices[0])
 
     confidence = float(
         predictions[best_index]
@@ -351,9 +414,7 @@ def classify_image(image):
         predictions[sorted_indices[1]]
     )
 
-    margin = (
-        confidence - second_confidence
-    )
+    margin = confidence - second_confidence
 
     predicted_class = class_names[best_index]
 
@@ -362,7 +423,6 @@ def classify_image(image):
         confidence < CONFIDENCE_THRESHOLD
         or margin < MARGIN_THRESHOLD
     ):
-
         return "Unknown Item", confidence
 
     return predicted_class.title(), confidence
@@ -416,7 +476,6 @@ def home():
         """).fetchall()
 
     finally:
-
         connection.close()
 
     waste_counts = {
@@ -444,23 +503,12 @@ def classify():
         file = request.files.get("image")
 
         if not file or not file.filename:
-
             flash("Please select an image.")
+            return redirect(url_for("classify"))
 
-            return redirect(
-                url_for("classify")
-            )
-
-        if not allowed_file(
-            file.filename,
-            ALLOWED_IMAGES
-        ):
-
+        if not allowed_file(file.filename, ALLOWED_IMAGES):
             flash("Please upload a valid image.")
-
-            return redirect(
-                url_for("classify")
-            )
+            return redirect(url_for("classify"))
 
         try:
 
@@ -472,14 +520,9 @@ def classify():
                 file.filename
             )
 
-            save_image(
-                image,
-                filename
-            )
+            save_image(image, filename)
 
-            predicted_class, confidence = classify_image(
-                image
-            )
+            predicted_class, confidence = classify_image(image)
 
             save_history(
                 filename,
@@ -496,19 +539,13 @@ def classify():
                     filename=filename
                 ),
                 predicted_class=predicted_class,
-                confidence=round(
-                    confidence * 100,
-                    2
-                )
+                confidence=round(confidence * 100, 2)
             )
 
         except (UnidentifiedImageError, OSError):
 
             flash("The uploaded file is not a valid image.")
-
-            return redirect(
-                url_for("classify")
-            )
+            return redirect(url_for("classify"))
 
         except Exception:
 
@@ -517,14 +554,9 @@ def classify():
             )
 
             flash("Unable to process the image.")
+            return redirect(url_for("classify"))
 
-            return redirect(
-                url_for("classify")
-            )
-
-    return render_template(
-        "classify.html"
-    )
+    return render_template("classify.html")
 
 
 # ==================================================
@@ -536,27 +568,15 @@ def camera():
 
     if request.method == "POST":
 
-        image_data = request.form.get(
-            "camera_image"
-        )
+        image_data = request.form.get("camera_image")
 
-        if (
-            not image_data
-            or "," not in image_data
-        ):
-
+        if not image_data or "," not in image_data:
             flash("Please capture an image.")
-
-            return redirect(
-                url_for("camera")
-            )
+            return redirect(url_for("camera"))
 
         try:
 
-            encoded_image = image_data.split(
-                ",",
-                1
-            )[1]
+            encoded_image = image_data.split(",", 1)[1]
 
             image_bytes = base64.b64decode(
                 encoded_image,
@@ -567,18 +587,11 @@ def camera():
                 io.BytesIO(image_bytes)
             ).convert("RGB")
 
-            filename = create_unique_filename(
-                "camera.jpg"
-            )
+            filename = create_unique_filename("camera.jpg")
 
-            save_image(
-                image,
-                filename
-            )
+            save_image(image, filename)
 
-            predicted_class, confidence = classify_image(
-                image
-            )
+            predicted_class, confidence = classify_image(image)
 
             save_history(
                 filename,
@@ -595,19 +608,17 @@ def camera():
                     filename=filename
                 ),
                 predicted_class=predicted_class,
-                confidence=round(
-                    confidence * 100,
-                    2
-                )
+                confidence=round(confidence * 100, 2)
             )
 
-        except (UnidentifiedImageError, OSError, ValueError):
+        except (
+            UnidentifiedImageError,
+            OSError,
+            ValueError
+        ):
 
             flash("The captured image is invalid. Please try again.")
-
-            return redirect(
-                url_for("camera")
-            )
+            return redirect(url_for("camera"))
 
         except Exception:
 
@@ -616,14 +627,9 @@ def camera():
             )
 
             flash("Unable to process the captured image.")
+            return redirect(url_for("camera"))
 
-            return redirect(
-                url_for("camera")
-            )
-
-    return render_template(
-        "camera.html"
-    )
+    return render_template("camera.html")
 
 
 # ==================================================
@@ -638,27 +644,14 @@ def video():
         file = request.files.get("video")
 
         if not file or not file.filename:
-
             flash("Please select a video.")
+            return redirect(url_for("video"))
 
-            return redirect(
-                url_for("video")
-            )
-
-        if not allowed_file(
-            file.filename,
-            ALLOWED_VIDEOS
-        ):
-
+        if not allowed_file(file.filename, ALLOWED_VIDEOS):
             flash("Please upload a supported video.")
+            return redirect(url_for("video"))
 
-            return redirect(
-                url_for("video")
-            )
-
-        filename = create_unique_filename(
-            file.filename
-        )
+        filename = create_unique_filename(file.filename)
 
         filepath = os.path.join(
             UPLOAD_FOLDER,
@@ -671,23 +664,17 @@ def video():
 
             file.save(filepath)
 
-            capture = cv2.VideoCapture(
-                filepath
-            )
+            capture = cv2.VideoCapture(filepath)
 
             if not capture.isOpened():
-
                 flash("Unable to open video.")
-
-                return redirect(
-                    url_for("video")
-                )
+                return redirect(url_for("video"))
 
             results = []
 
             frame_number = 0
 
-            # Limit video processing to 300 frames.
+            # Limit processing to 300 frames.
             max_frames = 300
 
             while frame_number < max_frames:
@@ -708,13 +695,9 @@ def video():
                     cv2.COLOR_BGR2RGB
                 )
 
-                image = Image.fromarray(
-                    frame_rgb
-                )
+                image = Image.fromarray(frame_rgb)
 
-                predicted_class, confidence = classify_image(
-                    image
-                )
+                predicted_class, confidence = classify_image(image)
 
                 results.append({
                     "frame": frame_number,
@@ -733,14 +716,8 @@ def video():
                 )
 
             if not results:
-
-                flash(
-                    "No video frames were available for analysis."
-                )
-
-                return redirect(
-                    url_for("video")
-                )
+                flash("No video frames were available for analysis.")
+                return redirect(url_for("video"))
 
             summary = dict(
                 Counter(
@@ -763,19 +740,14 @@ def video():
             )
 
             flash("Unable to analyze the video.")
-
-            return redirect(
-                url_for("video")
-            )
+            return redirect(url_for("video"))
 
         finally:
 
             if capture is not None:
                 capture.release()
 
-    return render_template(
-        "video.html"
-    )
+    return render_template("video.html")
 
 
 # ==================================================
@@ -795,7 +767,6 @@ def history():
         """).fetchall()
 
     finally:
-
         connection.close()
 
     return render_template(
@@ -826,7 +797,6 @@ def reports():
         ).fetchone()[0]
 
     finally:
-
         connection.close()
 
     waste_counts = {
@@ -858,7 +828,6 @@ def download_report():
         """).fetchall()
 
     finally:
-
         connection.close()
 
     output = io.StringIO()
@@ -919,21 +888,15 @@ def clear_history():
 
     try:
 
-        connection.execute(
-            "DELETE FROM history"
-        )
-
+        connection.execute("DELETE FROM history")
         connection.commit()
 
     finally:
-
         connection.close()
 
     flash("Classification history cleared.")
 
-    return redirect(
-        url_for("history")
-    )
+    return redirect(url_for("history"))
 
 
 # ==================================================
@@ -946,7 +909,8 @@ def health():
     return {
         "status": "running",
         "application": "EcoSort AI",
-        "model_loaded": model is not None,
+        "model_loaded": interpreter is not None,
+        "model_type": "TensorFlow Lite",
         "classes": class_names
     }
 
@@ -958,13 +922,9 @@ def health():
 @app.errorhandler(413)
 def file_too_large(error):
 
-    flash(
-        "File size exceeds the 100 MB limit."
-    )
+    flash("File size exceeds the 100 MB limit.")
 
-    return redirect(
-        url_for("home")
-    )
+    return redirect(url_for("home"))
 
 
 # ==================================================
@@ -981,6 +941,7 @@ if __name__ == "__main__":
     print("          ECOSORT AI WEBSITE")
     print("-----------------------------------")
     print(f"Port: {port}")
+    print("Using TensorFlow Lite")
     print("Application starting...")
 
     app.run(

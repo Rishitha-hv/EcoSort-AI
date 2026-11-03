@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Video Results | EcoSort AI{% endblock %}
+{% block content %}
+<section class="page-intro"><span class="eyebrow green-text">VIDEO ANALYSIS COMPLETE</span><h1>Frame Classification Results</h1><p>Summary of the sampled frames from your video.</p></section>
+<section class="stats-grid three"><div class="stat-card"><span>Frames analysed</span><strong>{{ total_frames }}</strong></div><div class="stat-card"><span>Recognised frames</span><strong>{{ recognised_count }}</strong></div><div class="stat-card"><span>Unknown frames</span><strong>{{ unknown_count }}</strong></div></section>
+{% if results %}<div class="frame-grid">{% for item in results %}<article class="frame-card"><img src="{{ item.image_url }}" alt="Video frame {{ item.frame_number }}"><div class="frame-info"><b>Frame {{ item.frame_number }}</b><span class="class-pill {% if item.prediction|lower in ['unknown','unknown item'] %}unknown{% endif %}">{{ item.prediction|title }}</span><small>{{ '%.2f'|format(item.confidence) }}% confidence</small></div></article>{% endfor %}</div>{% else %}<div class="empty-state"><h2>No frames were analysed</h2><p>Try a longer or different video.</p></div>{% endif %}
+<a class="btn btn-primary" href="{{ url_for('video') }}">Analyse another video →</a>
+{% endblock %}

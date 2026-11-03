@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Camera | EcoSort AI{% endblock %}
+{% block content %}
+<section class="page-intro"><span class="eyebrow green-text">LIVE CAPTURE</span><h1>Use Your Camera</h1><p>Place one waste item in view and capture a clear image.</p></section>
+<div class="camera-panel">
+  <video id="cameraPreview" autoplay playsinline></video><canvas id="cameraCanvas" hidden></canvas>
+  <div class="camera-actions"><button class="btn btn-outline" type="button" id="startCamera">Start camera</button><button class="btn btn-primary" type="button" id="captureButton">Capture image</button></div>
+  <form method="POST" action="{{ url_for('camera') }}" id="cameraForm"><input type="hidden" name="camera_image" id="cameraImage"><button class="btn btn-primary full" type="submit">Classify captured image →</button></form>
+  <p class="muted" id="cameraStatus">Allow camera access when your browser asks.</p>
+</div>
+<script>
+const video=document.getElementById('cameraPreview'),canvas=document.getElementById('cameraCanvas');let stream=null;
+document.getElementById('startCamera').addEventListener('click',async()=>{try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});video.srcObject=stream;document.getElementById('cameraStatus').textContent='Camera is ready.';}catch(e){document.getElementById('cameraStatus').textContent='Camera access failed. Check browser permissions.';}});
+document.getElementById('captureButton').addEventListener('click',()=>{if(!video.videoWidth){document.getElementById('cameraStatus').textContent='Start the camera first.';return;}canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext('2d').drawImage(video,0,0);document.getElementById('cameraImage').value=canvas.toDataURL('image/jpeg',0.9);document.getElementById('cameraStatus').textContent='Image captured. Click classify to continue.';});
+document.getElementById('cameraForm').addEventListener('submit',e=>{if(!document.getElementById('cameraImage').value){e.preventDefault();document.getElementById('cameraStatus').textContent='Capture an image first.';}});
+window.addEventListener('beforeunload',()=>{if(stream)stream.getTracks().forEach(t=>t.stop());});
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+ECOSORT AI CORRECTED FILES
+
+Copy app.py, class_names.json and requirements.txt into your project root.
+Copy templates/ and static/ folders into the same project root.
+Keep your existing waste_classifier.tflite and database.db files.
+
+Install: python -m pip install -r requirements.txt
+Run: python app.py
+Open: http://127.0.0.1:5000
+
+Important: class_names.json order must match the model's training output order.
+This code expects a 4-output model and RGB pixel input 0-255. It assumes the TFLite
+model includes any required input rescaling layer. Unknown is a confidence/margin
+rejection heuristic and cannot guarantee rejection of every unsupported object.

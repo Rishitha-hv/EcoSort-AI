@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}EcoSort AI{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="{{ url_for('home') }}"><span class="brand-mark">♻</span><span>EcoSort <b>AI</b></span></a>
+  <button class="menu-toggle" type="button" onclick="document.querySelector('.main-nav').classList.toggle('open')">☰</button>
+  <nav class="main-nav">
+    <a class="{% if request.endpoint == 'home' %}active{% endif %}" href="{{ url_for('home') }}">Home</a>
+    <a class="{% if request.endpoint in ['classify','camera','video'] %}active{% endif %}" href="{{ url_for('classify') }}">Classify</a>
+    <a class="{% if request.endpoint == 'history' %}active{% endif %}" href="{{ url_for('history') }}">History</a>
+    <a class="{% if request.endpoint == 'reports' %}active{% endif %}" href="{{ url_for('reports') }}">Report</a>
+  </nav>
+</header>
+<main class="page-shell">
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}<div class="flash-wrap">{% for message in messages %}<div class="flash">{{ message }}</div>{% endfor %}</div>{% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="footer"><strong>♻ EcoSort AI</strong><span>Smarter waste sorting for a cleaner tomorrow.</span></footer>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}EcoSort AI | Home{% endblock %}
+{% block content %}
+<section class="home-hero">
+  <div class="hero-copy">
+    <span class="eyebrow">SMART WASTE CLASSIFICATION</span>
+    <h1>Sort smarter.<br><span>Live greener.</span></h1>
+    <p>Identify recyclable waste in seconds with AI-powered image classification. A simple step towards a cleaner planet.</p>
+    <a class="btn btn-light" href="{{ url_for('classify') }}">Get Started <span>→</span></a>
+    <div class="hero-note">● Four waste categories · Instant AI prediction</div>
+  </div>
+  <div class="hero-art"><div class="orbit"></div><div class="orbit orbit-two"></div><div class="earth">♻</div><span class="leaf leaf-a">✦</span><span class="leaf leaf-b">❧</span><div class="art-caption">Make every item count</div></div>
+</section>
+<section class="section-heading"><div><span class="eyebrow green-text">EXPLORE ECOSORT</span><h2>What can we classify?</h2><p>Our model recognises four common recyclable material categories.</p></div><a class="text-link" href="{{ url_for('classify') }}">Start classifying →</a></section>
+<section class="category-grid">
+  <article class="category-card"><div class="category-icon glass-icon">◇</div><h3>Glass</h3><p>Bottles and glass containers</p></article>
+  <article class="category-card"><div class="category-icon metal-icon">▤</div><h3>Metal</h3><p>Cans and metal packaging</p></article>
+  <article class="category-card"><div class="category-icon paper-icon">▧</div><h3>Paper</h3><p>Sheets, newspapers and paper</p></article>
+  <article class="category-card"><div class="category-icon plastic-icon">♧</div><h3>Plastic</h3><p>Bottles and plastic containers</p></article>
+</section>
+<div class="home-cta"><div><span class="eyebrow green-text">READY TO BEGIN?</span><h2>Give your waste a second chance.</h2></div><a class="btn btn-primary" href="{{ url_for('classify') }}">Classify an item →</a></div>
+{% endblock %}

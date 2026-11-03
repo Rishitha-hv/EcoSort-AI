@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Reports | EcoSort AI{% endblock %}
+{% block content %}
+<section class="page-intro"><span class="eyebrow green-text">ANALYTICS OVERVIEW</span><h1>Classification Report</h1><p>A summary of your waste classification activity.</p></section>
+<section class="stats-grid three"><div class="stat-card"><span>Total analyses</span><strong>{{ total }}</strong></div><div class="stat-card"><span>Recognised items</span><strong>{{ total - unknown_count }}</strong></div><div class="stat-card"><span>Unknown items</span><strong>{{ unknown_count }}</strong></div></section>
+<section class="report-layout"><div class="report-card"><span class="eyebrow green-text">CATEGORY BREAKDOWN</span><h2>Items by material</h2>
+{% set max_count = categories.values()|max if categories.values()|max > 0 else 1 %}
+{% for category,count in categories.items() %}<div class="category-stat"><div><b>{{ category|title }}</b><span>{{ count }}</span></div><div class="progress"><span style="width:{{ (count / max_count * 100)|round(1) }}%"></span></div></div>{% endfor %}
+</div><div class="eco-callout"><div class="eco-callout-icon">♻</div><span class="eyebrow">SMALL STEPS, BIG IMPACT</span><h2>Build better sorting habits.</h2><p>Correctly identifying materials is a useful first step towards responsible waste segregation and recycling.</p><a href="{{ url_for('classify') }}" class="btn btn-light">Classify an item →</a></div></section>
+{% endblock %}

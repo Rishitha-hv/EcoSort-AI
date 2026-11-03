@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}History | EcoSort AI{% endblock %}
+{% block content %}
+<section class="page-intro split-intro"><div><span class="eyebrow green-text">YOUR ACTIVITY</span><h1>Classification History</h1><p>Review the items analysed by EcoSort AI.</p></div><form method="POST" action="{{ url_for('clear_history') }}" onsubmit="return confirm('Clear all classification history?')"><button class="btn btn-danger" type="submit">Clear history</button></form></section>
+<div class="table-card">
+{% if records %}<div class="table-scroll"><table><thead><tr><th>Item</th><th>Prediction</th><th>Confidence</th><th>Source</th><th>Date & time</th></tr></thead><tbody>
+{% for item in records %}<tr><td><div class="item-cell"><img src="{{ url_for('uploaded_file', filename=item['filename']) }}" alt=""><span>{{ item['filename'] }}</span></div></td><td><span class="class-pill {% if item['waste_type']|lower in ['unknown','unknown item'] %}unknown{% endif %}">{{ item['waste_type']|title }}</span></td><td><div class="table-confidence"><b>{{ '%.1f'|format(item['confidence']) }}%</b><div class="mini-progress"><i style="width:{{ item['confidence'] }}%"></i></div></div></td><td>{{ item['source']|title }}</td><td>{{ item['timestamp'] }}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<div class="empty-state"><div>♻</div><h2>No classifications yet</h2><p>Your analysed items will appear here.</p><a class="btn btn-primary" href="{{ url_for('classify') }}">Classify your first item</a></div>{% endif %}
+</div>
+{% endblock %}

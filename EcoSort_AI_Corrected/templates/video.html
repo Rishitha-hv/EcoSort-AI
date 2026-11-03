@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Video | EcoSort AI{% endblock %}
+{% block content %}
+<section class="page-intro"><span class="eyebrow green-text">VIDEO ANALYSIS</span><h1>Upload a Video</h1><p>EcoSort AI samples selected frames and classifies each frame independently.</p></section>
+<div class="form-panel narrow"><div class="large-option-icon">▷</div>
+<form method="POST" action="{{ url_for('video') }}" enctype="multipart/form-data">
+<label class="file-drop big-drop"><input type="file" name="video" accept=".mp4,.avi,.mov,.mkv" required><b>Choose a video</b><small>MP4, AVI, MOV or MKV</small></label>
+<button class="btn btn-primary full" type="submit">Analyse video →</button></form>
+<p class="muted center">For faster processing, use a short video with a clearly visible waste item.</p></div>
+{% endblock %}

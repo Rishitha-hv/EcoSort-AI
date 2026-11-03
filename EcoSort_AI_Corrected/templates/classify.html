@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Classify | EcoSort AI{% endblock %}
+{% block content %}
+<section class="page-intro"><span class="eyebrow green-text">AI-POWERED ANALYSIS</span><h1>Classify Waste Item</h1><p>Choose how you want to submit an item for classification.</p></section>
+<section class="input-options">
+  <article class="input-card featured"><div class="option-icon">↑</div><span class="option-tag">IMAGE</span><h2>Upload Image</h2><p>Select a clear JPG, PNG or JPEG photo containing one waste item.</p>
+    <form method="POST" action="{{ url_for('classify') }}" enctype="multipart/form-data">
+      <label class="file-drop"><input type="file" name="image" accept=".jpg,.jpeg,.png" required><b>Choose an image</b><small>JPG, JPEG or PNG</small></label>
+      <button class="btn btn-primary full" type="submit">Analyse Image →</button>
+    </form>
+  </article>
+  <article class="input-card"><div class="option-icon camera-icon">◎</div><span class="option-tag">LIVE</span><h2>Use Camera</h2><p>Capture a waste item directly using your device camera.</p><div class="option-spacer"></div><a class="btn btn-outline full" href="{{ url_for('camera') }}">Open Camera →</a></article>
+  <article class="input-card"><div class="option-icon video-icon">▷</div><span class="option-tag">VIDEO</span><h2>Upload Video</h2><p>Sample video frames and classify the visible waste item.</p><div class="option-spacer"></div><a class="btn btn-outline full" href="{{ url_for('video') }}">Upload Video →</a></article>
+</section>
+<div class="notice">ⓘ <p><b>For best results:</b> Use a well-lit image with one clearly visible object. Supported categories are glass, metal, paper and plastic. Other objects may be marked as unknown.</p></div>
+{% endblock %}

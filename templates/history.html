@@ -1,92 +1,109 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Classification History | EcoSort AI</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-<header class="site-header">
-    <a class="brand" href="{{ url_for('home') }}">
-        <span class="brand-mark">♻</span>
-        <span>EcoSort <b>AI</b></span>
-    </a>
 
-    <button class="menu-toggle"
-            onclick="document.querySelector('.main-nav').classList.toggle('open')">
-        ☰
-    </button>
+{% extends "base.html" %}
 
-    <nav class="main-nav">
-        <a href="{{ url_for('home') }}">Home</a>
-        <a href="{{ url_for('classify') }}">Classify</a>
-        <a href="{{ url_for('history') }}">History</a>
-        <a href="{{ url_for('reports') }}">Report</a>
-    </nav>
-</header>
+{% block title %}Classification History | EcoSort AI{% endblock %}
 
-<main class="container">
-    <section class="page-heading page-heading-row">
-        <div>
-            <p class="eyebrow">YOUR ACTIVITY</p>
-            <h1>Classification history</h1>
-            <p>Review the images analysed by EcoSort AI.</p>
+{% block content %}
+
+<section class="history-page">
+
+    <div class="section-heading">
+        <span class="eyebrow">YOUR ACTIVITY</span>
+        <h1>Classification History</h1>
+        <p>View the waste items previously analysed by EcoSort AI.</p>
+    </div>
+
+    {% if history %}
+
+    <div class="history-section">
+
+        <div class="history-header">
+            <h2>Previous Classifications</h2>
+
+            <form method="POST" action="{{ url_for('clear_history') }}"
+                  onsubmit="return confirm('Are you sure you want to clear all history?');">
+
+                <button type="submit" class="btn btn-danger">
+                    Clear History
+                </button>
+
+            </form>
         </div>
 
-        {% if records %}
-        <form action="{{ url_for('clear_history') }}" method="POST"
-              onsubmit="return confirm('Are you sure you want to clear all history?');">
-            <button class="btn btn-danger" type="submit">Clear History</button>
-        </form>
-        {% endif %}
-    </section>
+        <div class="table-responsive">
 
-    {% if records %}
-    <div class="table-wrapper">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>No.</th>
-                    <th>Image</th>
-                    <th>Waste Category</th>
-                    <th>Confidence</th>
-                    <th>Source</th>
-                    <th>Date and Time</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in records %}
-                <tr>
-                    <td>{{ loop.index }}</td>
-                    <td>
-                        <img class="history-image"
-                             src="{{ url_for('uploaded_file', filename=item['filename']) }}"
-                             alt="Classified item">
-                    </td>
-                    <td>
-                        {% if item['waste_type']|lower in ['glass', 'metal', 'paper', 'plastic'] %}
-                            <span class="category-badge">{{ item['waste_type']|title }}</span>
-                        {% else %}
-                            <span class="unknown-badge">Unknown Item</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ item['confidence'] }}%</td>
-                    <td>{{ item['source'] }}</td>
-                    <td>{{ item['timestamp'] }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+            <table class="data-table">
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Filename</th>
+                        <th>Waste Category</th>
+                        <th>Confidence</th>
+                        <th>Source</th>
+                        <th>Date & Time</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for item in history %}
+
+                    <tr>
+                        <td>{{ item.id }}</td>
+
+                        <td>{{ item.filename }}</td>
+
+                        <td>
+                            {% if item.waste_type == "Unknown Item" %}
+                                <span class="status-unknown">
+                                    Unknown Item
+                                </span>
+                            {% else %}
+                                <strong>{{ item.waste_type }}</strong>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {{ "%.2f"|format(item.confidence|float) }}%
+                        </td>
+
+                        <td>{{ item.source }}</td>
+
+                        <td>{{ item.timestamp }}</td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
     </div>
+
     {% else %}
-    <section class="empty-state panel">
-        <div class="empty-icon">📂</div>
-        <h2>No classification history</h2>
-        <p class="muted">Your analysed images will appear here.</p>
-        <a href="{{ url_for('classify') }}" class="btn btn-primary">Classify an Image</a>
-    </section>
+
+    <div class="empty-state">
+
+        <div class="upload-icon">📋</div>
+
+        <h2>No History Available</h2>
+
+        <p>
+            You haven't classified any waste items yet.
+            Start by uploading an image or using your camera.
+        </p>
+
+        <a href="{{ url_for('classify') }}" class="btn btn-primary">
+            Classify Waste
+        </a>
+
+    </div>
+
     {% endif %}
-</main>
-</body>
-</html>
+
+</section>
+
+{% endblock %}

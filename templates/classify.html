@@ -1,80 +1,148 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Image | EcoSort AI</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-<header class="site-header">
-    <a class="brand" href="{{ url_for('home') }}">
-        <span class="brand-mark">♻</span>
-        <span>EcoSort <b>AI</b></span>
-    </a>
 
-    <button class="menu-toggle"
-            onclick="document.querySelector('.main-nav').classList.toggle('open')">
-        ☰
-    </button>
+{% extends "base.html" %}
 
-    <nav class="main-nav">
-        <a href="{{ url_for('home') }}">Home</a>
-        <a href="{{ url_for('classify') }}">Classify</a>
-        <a href="{{ url_for('history') }}">History</a>
-        <a href="{{ url_for('reports') }}">Report</a>
-    </nav>
-</header>
+{% block title %}Upload Image | EcoSort AI{% endblock %}
 
-<main class="container narrow">
-    <a class="back-link" href="{{ url_for('home') }}">← Back to dashboard</a>
+{% block content %}
 
-    <section class="page-heading">
-        <p class="eyebrow">IMAGE CLASSIFICATION</p>
-        <h1>Upload a waste image</h1>
-        <p>Select a clear image containing one waste item. The AI will classify it into one of four categories.</p>
-    </section>
+<section class="form-page">
 
-    <section class="panel">
-        <form action="{{ url_for('classify') }}" method="POST" enctype="multipart/form-data">
-            <label class="upload-box" for="image">
-                <span class="upload-icon">📁</span>
-                <strong>Choose an image</strong>
-                <span>Click to browse JPG, JPEG or PNG files</span>
-                <input type="file" id="image" name="image" accept="image/*" required>
-            </label>
+    <div class="section-heading">
+        <span class="eyebrow">AI IMAGE CLASSIFICATION</span>
+        <h1>Upload Waste Image</h1>
+        <p>
+            Upload a clear image of one waste item.
+            Our AI model will analyse and classify it.
+        </p>
+    </div>
 
-            <div id="preview-container" class="preview-container" hidden>
-                <img id="image-preview" alt="Selected image preview">
-                <p id="file-name"></p>
+    <form method="POST"
+          action="{{ url_for('classify') }}"
+          enctype="multipart/form-data"
+          class="upload-panel">
+
+        <label for="image" class="drop-zone">
+
+            <div class="upload-icon">📤</div>
+
+            <h3>Choose Your Image</h3>
+
+            <p>Click here to browse your device</p>
+
+            <span id="file-name">
+                Supported formats: JPG, JPEG, PNG
+            </span>
+
+            <input
+                type="file"
+                id="image"
+                name="image"
+                accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                required
+            >
+
+        </label>
+
+        <!-- Image Preview -->
+        <div id="preview-container" style="display:none;">
+            <h3>Image Preview</h3>
+
+            <img
+                id="image-preview"
+                src=""
+                alt="Selected waste image"
+                style="max-width:100%; max-height:300px; object-fit:contain;"
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-wide">
+            Analyse Waste
+        </button>
+
+    </form>
+
+    <div class="tip">
+        <strong>Important:</strong>
+        For better classification accuracy, upload a clear image
+        containing one waste object.
+    </div>
+
+    <!-- Supported Classes -->
+    <section class="supported-classes">
+
+        <h2>Supported Waste Categories</h2>
+
+        <div class="category-grid">
+
+            <div class="category-card">
+                <span class="category-icon">🍾</span>
+                <h3>Glass</h3>
             </div>
 
-            <button type="submit" class="btn btn-primary btn-full">Analyse Image</button>
-        </form>
+            <div class="category-card">
+                <span class="category-icon">🥫</span>
+                <h3>Metal</h3>
+            </div>
+
+            <div class="category-card">
+                <span class="category-icon">📄</span>
+                <h3>Paper</h3>
+            </div>
+
+            <div class="category-card">
+                <span class="category-icon">🧴</span>
+                <h3>Plastic</h3>
+            </div>
+
+        </div>
+
     </section>
 
-    <section class="info-panel">
-        <h3>Supported categories</h3>
-        <div class="category-tags">
-            <span>Glass</span><span>Metal</span><span>Paper</span><span>Plastic</span>
-        </div>
-        <p class="muted">If the image does not match the trained categories or the prediction is uncertain, the result may be Unknown Item.</p>
-    </section>
-</main>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
 
 <script>
-const imageInput = document.getElementById("image");
-imageInput.addEventListener("change", function () {
-    const file = this.files[0];
-    const container = document.getElementById("preview-container");
-    if (!file) {
-        container.hidden = true;
-        return;
-    }
-    document.getElementById("image-preview").src = URL.createObjectURL(file);
-    document.getElementById("file-name").textContent = file.name;
-    container.hidden = false;
-});
+    const imageInput = document.getElementById("image");
+    const preview = document.getElementById("image-preview");
+    const previewContainer = document.getElementById("preview-container");
+    const fileName = document.getElementById("file-name");
+
+    imageInput.addEventListener("change", function () {
+
+        const file = this.files[0];
+
+        if (!file) {
+            previewContainer.style.display = "none";
+            return;
+        }
+
+        const allowedTypes = [
+            "image/jpeg",
+            "image/png"
+        ];
+
+        if (!allowedTypes.includes(file.type)) {
+            alert("Please select a JPG, JPEG or PNG image.");
+            this.value = "";
+            previewContainer.style.display = "none";
+            fileName.textContent = "Supported formats: JPG, JPEG, PNG";
+            return;
+        }
+
+        fileName.textContent = file.name;
+
+        const reader = new FileReader();
+
+        reader.onload = function (event) {
+            preview.src = event.target.result;
+            previewContainer.style.display = "block";
+        };
+
+        reader.readAsDataURL(file);
+    });
 </script>
-</body>
-</html>
+
+{% endblock %}

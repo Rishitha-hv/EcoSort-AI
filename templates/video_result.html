@@ -1,94 +1,116 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Results | EcoSort AI</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-<header class="site-header">
-    <a class="brand" href="{{ url_for('home') }}">
-        <span class="brand-mark">♻</span>
-        <span>EcoSort <b>AI</b></span>
-    </a>
 
-    <button class="menu-toggle"
-            onclick="document.querySelector('.main-nav').classList.toggle('open')">
-        ☰
-    </button>
+{% extends "base.html" %}
 
-    <nav class="main-nav">
-        <a href="{{ url_for('home') }}">Home</a>
-        <a href="{{ url_for('classify') }}">Classify</a>
-        <a href="{{ url_for('history') }}">History</a>
-        <a href="{{ url_for('reports') }}">Report</a>
-    </nav>
-</header>
+{% block title %}Video Analysis Results | EcoSort AI{% endblock %}
 
-<main class="container">
-    <section class="page-heading">
-        <p class="eyebrow">VIDEO ANALYSIS COMPLETE</p>
-        <h1>Video classification results</h1>
-        <p>Review the predictions made from the sampled video frames.</p>
-    </section>
+{% block content %}
 
-    <section class="stats-grid">
-        <div class="stat-card">
-            <span class="stat-icon">🎞️</span>
-            <p>Frames Analysed</p>
-            <h2>{{ total_frames|default(0) }}</h2>
-        </div>
-        <div class="stat-card">
-            <span class="stat-icon">♻️</span>
-            <p>Recognised Frames</p>
-            <h2>{{ recognised_count|default(0) }}</h2>
-        </div>
-        <div class="stat-card">
-            <span class="stat-icon">❔</span>
-            <p>Unknown Frames</p>
-            <h2>{{ unknown_count|default(0) }}</h2>
-        </div>
-    </section>
+<section class="result-page">
 
-    <section class="section">
-        <div class="section-heading">
-            <div>
-                <p class="eyebrow">FRAME-BY-FRAME RESULTS</p>
-                <h2>Predictions</h2>
-            </div>
-        </div>
-
-        {% if items %}
-        <div class="video-results-grid">
-            {% for item in items %}
-            <article class="video-result-card">
-                <img src="{{ item.image_url }}" alt="Video frame {{ item.frame_number }}">
-                <div class="video-result-content">
-                    <p class="muted">Frame {{ item.frame_number }}</p>
-                    {% if item.prediction|lower in ['glass', 'metal', 'paper', 'plastic'] %}
-                        <span class="status-label success-label">Recognised</span>
-                    {% else %}
-                        <span class="status-label unknown-label">Unknown</span>
-                    {% endif %}
-                    <h3>{{ item.prediction }}</h3>
-                    <p>Confidence: <strong>{{ item.confidence }}%</strong></p>
-                </div>
-            </article>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-state panel">
-            <h2>No frame results available</h2>
-            <p class="muted">Try uploading another video with clearly visible waste items.</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <div class="button-row">
-        <a href="{{ url_for('video') }}" class="btn btn-secondary">Analyse Another Video</a>
-        <a href="{{ url_for('home') }}" class="btn btn-primary">Back to Dashboard</a>
+    <div class="section-heading">
+        <span class="eyebrow">VIDEO ANALYSIS COMPLETE</span>
+        <h1>Video Analysis Report</h1>
+        <p>Review the waste classification results from your video.</p>
     </div>
-</main>
-</body>
-</html>
+
+    <!-- Summary Cards -->
+    <div class="stats-grid">
+
+        <div class="stat-card">
+            <h3>Total Frames Analysed</h3>
+            <p>{{ total_frames }}</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>Recognised Items</h3>
+            <p>{{ recognised_count }}</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>Unknown Items</h3>
+            <p>{{ unknown_count }}</p>
+        </div>
+
+    </div>
+
+    <!-- Individual Results -->
+    <div class="history-section">
+
+        <h2>Frame-by-Frame Results</h2>
+
+        {% if results %}
+
+        <div class="table-responsive">
+
+            <table class="data-table">
+
+                <thead>
+                    <tr>
+                        <th>Frame</th>
+                        <th>Predicted Category</th>
+                        <th>Confidence</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for item in results %}
+
+                    <tr>
+                        <td>
+                            {{ item.get('frame', loop.index) }}
+                        </td>
+
+                        <td>
+                            {% if item.get('waste_type') == 'Unknown Item' %}
+                                <span class="status-unknown">
+                                    Unknown Item
+                                </span>
+                            {% else %}
+                                <strong>
+                                    {{ item.get('waste_type', 'Unknown Item') }}
+                                </strong>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {{ "%.2f"|format(item.get('confidence', 0)|float) }}%
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        {% else %}
+
+        <p>No classification results were generated.</p>
+
+        {% endif %}
+
+    </div>
+
+    <!-- Actions -->
+    <div class="result-actions">
+
+        <a href="{{ url_for('video') }}" class="btn btn-primary">
+            Analyse Another Video
+        </a>
+
+        <a href="{{ url_for('history') }}" class="btn btn-secondary">
+            View History
+        </a>
+
+        <a href="{{ url_for('reports') }}" class="btn btn-secondary">
+            View Reports
+        </a>
+
+    </div>
+
+</section>
+
+{% endblock %}

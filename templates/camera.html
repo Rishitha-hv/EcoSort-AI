@@ -1,109 +1,246 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Camera | EcoSort AI</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-<header class="site-header">
-    <a class="brand" href="{{ url_for('home') }}">
-        <span class="brand-mark">♻</span>
-        <span>EcoSort <b>AI</b></span>
-    </a>
 
-    <button class="menu-toggle"
-            onclick="document.querySelector('.main-nav').classList.toggle('open')">
-        ☰
-    </button>
+{% extends "base.html" %}
 
-    <nav class="main-nav">
-        <a href="{{ url_for('home') }}">Home</a>
-        <a href="{{ url_for('classify') }}">Classify</a>
-        <a href="{{ url_for('history') }}">History</a>
-        <a href="{{ url_for('reports') }}">Report</a>
-    </nav>
-</header>
+{% block title %}Live Camera | EcoSort AI{% endblock %}
 
-<main class="container narrow">
-    <a class="back-link" href="{{ url_for('home') }}">← Back to dashboard</a>
+{% block content %}
 
-    <section class="page-heading">
-        <p class="eyebrow">CAMERA CLASSIFICATION</p>
-        <h1>Capture a waste item</h1>
-        <p>Allow camera access, position one waste item in view, and capture an image.</p>
-    </section>
+<section class="form-page">
 
-    <section class="panel camera-panel">
-        <video id="camera-video" autoplay playsinline></video>
-        <canvas id="camera-canvas" hidden></canvas>
+    <div class="section-heading">
+        <span class="eyebrow">LIVE CAMERA CLASSIFICATION</span>
+        <h1>Capture Waste Image</h1>
+        <p>
+            Use your camera to capture one waste item
+            and let EcoSort AI classify it.
+        </p>
+    </div>
 
-        <form action="{{ url_for('camera') }}" method="POST" id="camera-form">
-            <input type="hidden" name="camera_image" id="camera-image">
-            <div class="button-row">
-                <button type="button" class="btn btn-secondary" id="start-camera">Start Camera</button>
-                <button type="button" class="btn btn-secondary" id="capture-button" disabled>Capture Photo</button>
-                <button type="submit" class="btn btn-primary" id="analyse-button" disabled>Analyse Photo</button>
-            </div>
+    <div class="upload-panel camera-panel">
+
+        <!-- Live Camera -->
+        <div class="camera-preview">
+
+            <video
+                id="camera-video"
+                autoplay
+                playsinline
+                muted
+                style="width:100%; max-height:400px; background:#111; border-radius:12px;"
+            ></video>
+
+            <canvas id="camera-canvas" style="display:none;"></canvas>
+
+        </div>
+
+        <!-- Camera Buttons -->
+        <div class="camera-controls">
+
+            <button
+                type="button"
+                id="start-camera"
+                class="btn btn-primary"
+            >
+                Start Camera
+            </button>
+
+            <button
+                type="button"
+                id="capture-image"
+                class="btn btn-outline"
+                disabled
+            >
+                Capture Image
+            </button>
+
+        </div>
+
+        <!-- Captured Image Preview -->
+        <div id="captured-section" style="display:none;">
+
+            <h3>Captured Image Preview</h3>
+
+            <img
+                id="captured-preview"
+                src=""
+                alt="Captured waste item"
+                style="width:100%; max-height:350px; object-fit:contain; border-radius:12px;"
+            >
+
+        </div>
+
+        <!-- Flask Form -->
+        <form
+            method="POST"
+            action="{{ url_for('camera') }}"
+            id="camera-form"
+        >
+
+            <input
+                type="hidden"
+                name="camera_image"
+                id="camera-image"
+            >
+
+            <button
+                type="submit"
+                id="analyse-button"
+                class="btn btn-primary btn-wide"
+                disabled
+            >
+                Analyse Captured Image
+            </button>
+
         </form>
 
-        <p id="camera-message" class="muted">Click Start Camera to begin.</p>
-        <img id="captured-preview" class="captured-preview" alt="Captured image" hidden>
-    </section>
-</main>
+        <button
+            type="button"
+            id="retake-image"
+            class="btn btn-outline btn-wide"
+            style="display:none;"
+        >
+            Retake Image
+        </button>
+
+        <p id="camera-status" class="tip">
+            Click Start Camera to begin.
+        </p>
+
+    </div>
+
+</section>
+
+{% endblock %}
+
+
+{% block scripts %}
 
 <script>
+
 const video = document.getElementById("camera-video");
 const canvas = document.getElementById("camera-canvas");
-const imageField = document.getElementById("camera-image");
+
 const startButton = document.getElementById("start-camera");
-const captureButton = document.getElementById("capture-button");
+const captureButton = document.getElementById("capture-image");
 const analyseButton = document.getElementById("analyse-button");
-const message = document.getElementById("camera-message");
-const preview = document.getElementById("captured-preview");
+const retakeButton = document.getElementById("retake-image");
+
+const capturedSection = document.getElementById("captured-section");
+const capturedPreview = document.getElementById("captured-preview");
+
+const cameraInput = document.getElementById("camera-image");
+const cameraStatus = document.getElementById("camera-status");
 
 let cameraStream = null;
 
-startButton.addEventListener("click", async () => {
+
+// Start Camera
+startButton.addEventListener("click", async function () {
+
     try {
+
         cameraStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "environment" },
+            video: {
+                facingMode: "environment"
+            },
             audio: false
         });
+
         video.srcObject = cameraStream;
+
         captureButton.disabled = false;
-        message.textContent = "Camera is ready. Position the item and capture it.";
+        startButton.disabled = true;
+
+        cameraStatus.textContent = "Camera started. Position your waste item and capture it.";
+
     } catch (error) {
-        message.textContent = "Unable to access the camera. Check browser permissions.";
+
+        console.error(error);
+
+        cameraStatus.textContent =
+            "Unable to access camera. Please allow camera permission and try again.";
+
     }
+
 });
 
-captureButton.addEventListener("click", () => {
-    if (!video.videoWidth) {
-        message.textContent = "Wait for the camera to start.";
+
+// Capture Image
+captureButton.addEventListener("click", function () {
+
+    if (!video.videoWidth || !video.videoHeight) {
+        cameraStatus.textContent = "Camera is not ready. Please wait.";
         return;
     }
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    canvas.getContext("2d").drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-    imageField.value = dataUrl;
-    preview.src = dataUrl;
-    preview.hidden = false;
+
+    const context = canvas.getContext("2d");
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const imageData = canvas.toDataURL("image/jpeg", 0.92);
+
+    cameraInput.value = imageData;
+
+    capturedPreview.src = imageData;
+
+    capturedSection.style.display = "block";
+
     analyseButton.disabled = false;
-    message.textContent = "Photo captured. Click Analyse Photo.";
+    retakeButton.style.display = "block";
+
+    captureButton.disabled = true;
+
+    cameraStatus.textContent = "Image captured successfully! You can now analyse it.";
+
 });
 
-document.getElementById("camera-form").addEventListener("submit", () => {
-    if (!imageField.value) {
-        message.textContent = "Capture a photo before analysing.";
+
+// Retake Image
+retakeButton.addEventListener("click", function () {
+
+    cameraInput.value = "";
+
+    capturedPreview.src = "";
+
+    capturedSection.style.display = "none";
+
+    analyseButton.disabled = true;
+
+    captureButton.disabled = false;
+
+    retakeButton.style.display = "none";
+
+    cameraStatus.textContent = "Capture another image.";
+
+});
+
+
+// Stop Camera when leaving the page
+window.addEventListener("beforeunload", function () {
+
+    if (cameraStream) {
+
+        cameraStream.getTracks().forEach(track => track.stop());
+
     }
+
 });
 
-window.addEventListener("beforeunload", () => {
-    if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
+
+// Stop camera after form submission
+document.getElementById("camera-form").addEventListener("submit", function () {
+
+    if (cameraStream) {
+
+        cameraStream.getTracks().forEach(track => track.stop());
+
+    }
+
 });
+
 </script>
-</body>
-</html>
+
+{% endblock %}

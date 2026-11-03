@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History | EcoSort AI</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+
+    <style>
+        .page-container {
+            max-width: 1100px;
+            margin: 50px auto;
+            padding: 30px;
+        }
+
+        .page-container h1 {
+            color: #193c2a;
+            margin: 12px 0;
+        }
+
+        .page-container > p {
+            color: #748178;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            background: white;
+            border-radius: 14px;
+            margin-top: 28px;
+            box-shadow: 0 5px 25px rgba(0,0,0,.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 750px;
+        }
+
+        th, td {
+            padding: 17px;
+            text-align: left;
+            border-bottom: 1px solid #edf1ed;
+        }
+
+        th {
+            background: #edf7ef;
+            color: #285b39;
+            font-size: 13px;
+        }
+
+        td {
+            color: #58675d;
+            font-size: 14px;
+        }
+
+        .category {
+            color: #21834e;
+            font-weight: 700;
+        }
+
+        .unknown {
+            color: #c45b42;
+            font-weight: 700;
+        }
+
+        .view-image {
+            color: #21834e;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .view-image:hover {
+            text-decoration: underline;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 35px;
+            color: #849087;
+        }
+
+        .actions {
+            margin-top: 25px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .clear-btn {
+            background: #fff0ed;
+            color: #b64b3c;
+            border: 1px solid #f2c9c1;
+            border-radius: 8px;
+            padding: 12px 18px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+    </style>
+</head>
+
+<body>
+
+<nav class="navbar">
+    <a href="/" class="logo">♻ EcoSort <span>AI</span></a>
+
+    <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/classify">Image</a>
+        <a href="/video">Video</a>
+        <a href="/camera">Camera</a>
+        <a href="/history">History</a>
+        <a href="/reports">Reports</a>
+    </div>
+</nav>
+
+<section class="page-container">
+
+    <span class="tag">YOUR PREVIOUS ANALYSIS</span>
+
+    <h1>Classification History</h1>
+
+    <p>
+        Review the waste classification records saved by EcoSort AI.
+    </p>
+
+    <div class="table-wrap">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Image</th>
+                    <th>Predicted Category</th>
+                    <th>Confidence</th>
+                    <th>Source</th>
+                    <th>Date & Time</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for item in records %}
+
+                <tr>
+                    <td>{{ loop.index }}</td>
+
+                    <td>
+                        {% if item['filename'] %}
+                            <a class="view-image"
+                               href="{{ url_for('uploaded_file', filename=item['filename']) }}"
+                               target="_blank">
+                                View Image
+                            </a>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {% if item['waste_type'] == 'Unknown Item' %}
+                            <span class="unknown">Unknown Item</span>
+                        {% else %}
+                            <span class="category">
+                                {{ item['waste_type']|title }}
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        {{ "%.2f"|format(item['confidence']|float) }}%
+                    </td>
+
+                    <td>{{ item['source']|title }}</td>
+
+                    <td>{{ item['timestamp'] }}</td>
+                </tr>
+
+                {% else %}
+
+                <tr>
+                    <td colspan="6" class="empty">
+                        No classification records yet.
+                        Upload an image to get started.
+                    </td>
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+        </table>
+
+    </div>
+
+    <div class="actions">
+
+        <a href="/classify" class="btn primary">
+            New Classification
+        </a>
+
+        <a href="/reports" class="btn secondary">
+            View Reports
+        </a>
+
+        <form action="/clear-history"
+              method="POST"
+              onsubmit="return confirm('Are you sure you want to clear all history?');">
+
+            <button type="submit" class="clear-btn">
+                Clear History
+            </button>
+
+        </form>
+
+    </div>
+
+</section>
+
+<footer>
+    <h3>♻ EcoSort AI</h3>
+    <p>Smart classification for a cleaner future.</p>
+</footer>
+
+</body>
+</html>

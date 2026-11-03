@@ -1,0 +1,217 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports & Analytics | EcoSort AI</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+
+    <style>
+        .page-container {
+            max-width: 1100px;
+            margin: 50px auto;
+            padding: 30px;
+        }
+
+        .page-container h1 {
+            color: #193c2a;
+            margin: 12px 0;
+        }
+
+        .page-container > p {
+            color: #748178;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 14px;
+            border: 1px solid #e8efe9;
+        }
+
+        .stat-card p {
+            color: #78847c;
+            font-size: 14px;
+        }
+
+        .stat-card h2 {
+            color: #21834e;
+            font-size: 30px;
+            margin-top: 12px;
+        }
+
+        .report-panel {
+            background: white;
+            padding: 28px;
+            border-radius: 14px;
+            margin-top: 25px;
+            box-shadow: 0 5px 25px rgba(0,0,0,.04);
+        }
+
+        .report-panel h2 {
+            color: #285b39;
+            margin-bottom: 20px;
+        }
+
+        .category-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin: 18px 0 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .progress {
+            height: 12px;
+            background: #e8f0e9;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #29965a;
+            border-radius: 20px;
+        }
+
+        .empty {
+            color: #849087;
+            padding: 15px 0;
+        }
+
+        .unknown-number {
+            color: #d97706 !important;
+        }
+
+        @media(max-width:700px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .page-container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<nav class="navbar">
+    <a href="/" class="logo">♻ EcoSort <span>AI</span></a>
+
+    <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/classify">Image</a>
+        <a href="/video">Video</a>
+        <a href="/camera">Camera</a>
+        <a href="/history">History</a>
+        <a href="/reports">Reports</a>
+    </div>
+</nav>
+
+{% set ns = namespace(recognised=0, unknown=0) %}
+
+{% for category, count in counts.items() %}
+    {% if category|lower == 'unknown item' %}
+        {% set ns.unknown = count|int %}
+    {% else %}
+        {% set ns.recognised = ns.recognised + (count|int) %}
+    {% endif %}
+{% endfor %}
+
+<section class="page-container">
+
+    <span class="tag">WASTE CLASSIFICATION INSIGHTS</span>
+
+    <h1>Reports & Analytics</h1>
+
+    <p>
+        View the classification activity and category distribution
+        recorded by EcoSort AI.
+    </p>
+
+    <div class="stats-grid">
+
+        <div class="stat-card">
+            <p>Total Classifications</p>
+            <h2>{{ total }}</h2>
+        </div>
+
+        <div class="stat-card">
+            <p>Recognised Items</p>
+            <h2>{{ ns.recognised }}</h2>
+        </div>
+
+        <div class="stat-card">
+            <p>Unknown Items</p>
+            <h2 class="unknown-number">{{ ns.unknown }}</h2>
+        </div>
+
+    </div>
+
+    <div class="report-panel">
+
+        <h2>Waste Category Distribution</h2>
+
+        {% if counts %}
+
+            {% for category, count in counts.items() %}
+
+                <div class="category-row">
+                    <span>{{ category|title }}</span>
+                    <span>{{ count }}</span>
+                </div>
+
+                <div class="progress">
+                    <div class="progress-fill"
+                         style="width: {{ ((count|float / total|float * 100) if total else 0)|round(2) }}%;">
+                    </div>
+                </div>
+
+            {% endfor %}
+
+        {% else %}
+
+            <p class="empty">
+                No classification data available yet.
+                Analyse an image to generate reports.
+            </p>
+
+        {% endif %}
+
+    </div>
+
+    <div class="report-panel">
+
+        <h2>About These Reports</h2>
+
+        <p>
+            These statistics are calculated from the classification
+            records stored by EcoSort AI. They represent the system's
+            recorded predictions, not a measurement of actual waste
+            collected or recycled.
+        </p>
+
+    </div>
+
+</section>
+
+<footer>
+    <h3>♻ EcoSort AI</h3>
+    <p>Smart classification for a cleaner future.</p>
+</footer>
+
+</body>
+</html>

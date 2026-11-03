@@ -1,0 +1,213 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classification Result | EcoSort AI</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <style>
+        .result-container {
+            max-width: 850px;
+            margin: 50px auto;
+            padding: 30px;
+        }
+
+        .result-card {
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 30px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        .result-image {
+            width: 100%;
+            max-width: 350px;
+            max-height: 300px;
+            object-fit: contain;
+            border-radius: 12px;
+            margin: 20px auto;
+            display: block;
+        }
+
+        .result-label {
+            color: #555;
+            font-size: 15px;
+            margin-bottom: 8px;
+        }
+
+        .prediction {
+            color: #16834a;
+            font-size: 32px;
+            margin: 10px 0 20px;
+            font-weight: bold;
+        }
+
+        .unknown {
+            color: #d97706;
+        }
+
+        .confidence-section {
+            max-width: 500px;
+            margin: 25px auto;
+            text-align: left;
+        }
+
+        .confidence-heading {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 13px;
+            background: #e5e7eb;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: #20a464;
+            border-radius: 20px;
+            transition: width 0.5s ease;
+        }
+
+        .unknown-fill {
+            background: #f59e0b;
+        }
+
+        .status-message {
+            padding: 14px;
+            margin: 20px auto;
+            max-width: 500px;
+            border-radius: 10px;
+            background: #e9f7ef;
+            color: #176b3a;
+        }
+
+        .unknown-message {
+            background: #fff7e6;
+            color: #92400e;
+        }
+
+        .result-buttons {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .result-buttons a {
+            display: inline-block;
+            padding: 12px 22px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .primary-btn {
+            background: #16834a;
+            color: white;
+        }
+
+        .secondary-btn {
+            background: #e8f5ed;
+            color: #16834a;
+        }
+
+        @media (max-width: 600px) {
+            .result-container {
+                margin: 20px auto;
+                padding: 15px;
+            }
+
+            .result-card {
+                padding: 20px 15px;
+            }
+
+            .prediction {
+                font-size: 26px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="result-container">
+        <div class="result-card">
+
+            <h1>Classification Result</h1>
+            <p>Your waste image has been analysed by EcoSort AI.</p>
+
+            {% if image_url %}
+                <img
+                    src="{{ image_url }}"
+                    alt="Uploaded waste image"
+                    class="result-image"
+                >
+            {% endif %}
+
+            <p class="result-label">Predicted Waste Category</p>
+
+            <h2 class="prediction {% if predicted_class == 'Unknown Item' %}unknown{% endif %}">
+                {{ predicted_class|default('Unknown Item')|title }}
+            </h2>
+
+            <div class="confidence-section">
+                <div class="confidence-heading">
+                    <span>Confidence Score</span>
+                    <span>{{ "%.2f"|format(confidence|default(0)|float) }}%</span>
+                </div>
+
+                <div class="confidence-bar">
+                    <div
+                        class="confidence-fill {% if predicted_class == 'Unknown Item' %}unknown-fill{% endif %}"
+                        style="width: {{ [[confidence|default(0)|float, 0]|max, 100]|min }}%;">
+                    </div>
+                </div>
+            </div>
+
+            {% if predicted_class == 'Unknown Item' %}
+                <div class="status-message unknown-message">
+                    <strong>Unknown Item</strong><br>
+                    This image could not be confidently classified into one
+                    of the six supported waste categories.
+                    Please upload a clearer image of cardboard, food, glass,
+                    metal, paper, or plastic.
+                </div>
+            {% else %}
+                <div class="status-message">
+                    <strong>Successfully Classified!</strong><br>
+                    Your image was classified as {{ predicted_class|title }}.
+                </div>
+            {% endif %}
+
+            <div class="result-buttons">
+
+                <a href="{{ url_for('classify') }}" class="primary-btn">
+                    Classify Another Image
+                </a>
+
+                <a href="{{ url_for('history') }}" class="secondary-btn">
+                    View History
+                </a>
+
+                <a href="/" class="secondary-btn">
+                    Home
+                </a>
+
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>

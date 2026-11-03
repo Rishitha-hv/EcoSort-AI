@@ -7,18 +7,19 @@
 
     <title>{% block title %}EcoSort AI{% endblock %}</title>
 
+    <!-- Main Stylesheet -->
     <link rel="stylesheet"
-          href="{{ url_for('static', filename='css/style.css') }}">
+          href="{{ url_for('static', filename='css/style.css') }}?v=2">
 
     {% block head %}{% endblock %}
 </head>
 
 <body>
 
-    <!-- Navigation Bar -->
     <header class="site-header">
         <a href="{{ url_for('home') }}" class="brand">
-            <span>♻</span> EcoSort <strong>AI</strong>
+            <span class="brand-icon">♻</span>
+            <span>EcoSort <strong>AI</strong></span>
         </a>
 
         <nav class="nav-links">
@@ -31,10 +32,8 @@
         </nav>
     </header>
 
-    <!-- Main Content -->
     <main class="page-container">
 
-        <!-- Flash Messages -->
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 <div class="flash-list">
@@ -51,7 +50,6 @@
 
     </main>
 
-    <!-- Footer -->
     <footer class="site-footer">
         <h3>♻ EcoSort AI</h3>
         <p>Smart Waste Classification for a Cleaner Tomorrow.</p>

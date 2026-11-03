@@ -1,90 +1,101 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reports | EcoSort AI</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-<header class="site-header">
-    <a class="brand" href="{{ url_for('home') }}">
-        <span class="brand-mark">♻</span>
-        <span>EcoSort <b>AI</b></span>
-    </a>
 
-    <button class="menu-toggle"
-            onclick="document.querySelector('.main-nav').classList.toggle('open')">
-        ☰
-    </button>
+{% extends "base.html" %}
 
-    <nav class="main-nav">
-        <a href="{{ url_for('home') }}">Home</a>
-        <a href="{{ url_for('classify') }}">Classify</a>
-        <a href="{{ url_for('history') }}">History</a>
-        <a href="{{ url_for('reports') }}">Report</a>
-    </nav>
-</header>
+{% block title %}Reports | EcoSort AI{% endblock %}
 
-<main class="container">
-    <section class="page-heading">
-        <p class="eyebrow">CLASSIFICATION SUMMARY</p>
-        <h1>Reports and analytics</h1>
-        <p>A summary of the classifications stored in your EcoSort AI history.</p>
-    </section>
+{% block content %}
 
-    <section class="stats-grid">
-        <div class="stat-card">
-            <span class="stat-icon">📊</span>
-            <p>Total Analysed</p>
-            <h2>{{ total|default(0) }}</h2>
-        </div>
-        <div class="stat-card">
-            <span class="stat-icon">♻️</span>
-            <p>Recognised Items</p>
-            <h2>{{ ns.recognised|default(0) }}</h2>
-        </div>
-        <div class="stat-card">
-            <span class="stat-icon">❔</span>
-            <p>Unknown Items</p>
-            <h2>{{ ns.unknown|default(0) }}</h2>
-        </div>
-    </section>
+<section class="reports-page">
 
-    <section class="panel">
-        <div class="section-heading">
-            <div>
-                <p class="eyebrow">CATEGORY BREAKDOWN</p>
-                <h2>Four waste categories</h2>
-            </div>
-        </div>
-
-        {% if categories %}
-            {% for category, count in categories.items() %}
-            <div class="report-row">
-                <div class="report-label">
-                    <strong>{{ category|title }}</strong>
-                    <span>{{ count }}</span>
-                </div>
-                <div class="progress-track">
-                    {% if ns.recognised|default(0) > 0 %}
-                        <div class="progress-fill"
-                             style="width: {{ (count / ns.recognised * 100)|round(1) }}%;"></div>
-                    {% else %}
-                        <div class="progress-fill" style="width: 0%;"></div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <p class="muted">No recognised classifications are available yet.</p>
-        {% endif %}
-    </section>
-
-    <div class="button-row">
-        <a href="{{ url_for('history') }}" class="btn btn-secondary">View History</a>
-        <a href="{{ url_for('classify') }}" class="btn btn-primary">Classify New Image</a>
+    <div class="section-heading">
+        <span class="eyebrow">ANALYTICS DASHBOARD</span>
+        <h1>Waste Classification Reports</h1>
+        <p>Overview of all waste items analysed by EcoSort AI.</p>
     </div>
-</main>
-</body>
-</html>
+
+    <!-- Total -->
+    <div class="stats-grid">
+
+        <div class="stat-card">
+            <h3>Total Classifications</h3>
+            <p>{{ total }}</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>Unknown Items</h3>
+            <p>{{ unknown_count }}</p>
+        </div>
+
+    </div>
+
+    <!-- Category Report -->
+    <div class="history-section">
+
+        <h2>Category-wise Report</h2>
+
+        <div class="table-responsive">
+
+            <table class="data-table">
+
+                <thead>
+                    <tr>
+                        <th>Waste Category</th>
+                        <th>Number of Items</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for category, count in categories.items() %}
+
+                    <tr>
+                        <td>{{ category|title }}</td>
+
+                        <td>{{ count }}</td>
+
+                        <td>
+                            {% if total > 0 %}
+                                {{ "%.2f"|format((count / total) * 100) }}%
+                            {% else %}
+                                0.00%
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                    <tr>
+                        <td><strong>Unknown Items</strong></td>
+                        <td>{{ unknown_count }}</td>
+
+                        <td>
+                            {% if total > 0 %}
+                                {{ "%.2f"|format((unknown_count / total) * 100) }}%
+                            {% else %}
+                                0.00%
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <div class="result-actions">
+        <a href="{{ url_for('home') }}" class="btn btn-primary">
+            Back to Home
+        </a>
+
+        <a href="{{ url_for('history') }}" class="btn btn-secondary">
+            View History
+        </a>
+    </div>
+
+</section>
+
+{% endblock %}

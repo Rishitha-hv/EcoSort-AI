@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,78 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Analysis | EcoSort AI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        .upload-section {
-            max-width: 750px;
-            margin: 65px auto;
-            padding: 40px;
-            background: white;
-            border-radius: 18px;
-            box-shadow: 0 8px 35px rgba(0,0,0,.06);
-        }
-        .upload-section h1 { margin: 15px 0; color: #193c2a; }
-        .upload-section > p { color: #748178; margin-bottom: 25px; line-height: 1.7; }
-        .upload-box {
-            border: 2px dashed #8bbd98;
-            background: #f5fbf5;
-            padding: 40px 20px;
-            text-align: center;
-            border-radius: 14px;
-        }
-        .upload-box .symbol { font-size: 48px; }
-        .upload-box p { color: #637368; margin: 12px 0; }
-        .upload-box input { margin-top: 15px; max-width: 100%; }
-        .submit-btn { border: 0; cursor: pointer; margin-top: 25px; width: 100%; font-size: 16px; }
-        .note { background: #f1f7ed; padding: 15px; border-radius: 9px; color: #55705b; font-size: 13px; margin-top: 20px; line-height: 1.6; }
-    </style>
 </head>
 <body>
+<header class="site-header">
+    <a class="brand" href="{{ url_for('home') }}">
+        <span class="brand-mark">♻</span>
+        <span>EcoSort <b>AI</b></span>
+    </a>
 
-<nav class="navbar">
-    <a href="/" class="logo">♻ EcoSort <span>AI</span></a>
-    <div class="nav-links">
-        <a href="/">Home</a>
-        <a href="/classify">Image</a>
-        <a href="/video">Video</a>
-        <a href="/camera">Camera</a>
-        <a href="/history">History</a>
-        <a href="/reports">Reports</a>
-    </div>
-</nav>
+    <button class="menu-toggle"
+            onclick="document.querySelector('.main-nav').classList.toggle('open')">
+        ☰
+    </button>
 
-<section class="upload-section">
-    <span class="tag">VIDEO-BASED WASTE ANALYSIS</span>
-    <h1>Analyse a Video</h1>
-    <p>
-        Upload a video containing waste items. EcoSort AI will analyse
-        selected frames and classify the visible waste categories.
-    </p>
+    <nav class="main-nav">
+        <a href="{{ url_for('home') }}">Home</a>
+        <a href="{{ url_for('classify') }}">Classify</a>
+        <a href="{{ url_for('history') }}">History</a>
+        <a href="{{ url_for('reports') }}">Report</a>
+    </nav>
+</header>
 
-    <form action="/video" method="POST" enctype="multipart/form-data">
-        <div class="upload-box">
-            <div class="symbol">🎬</div>
-            <h3>Select a Video</h3>
-            <p>Choose a video file from your device.</p>
-            <input type="file" name="video" accept="video/*" required>
-        </div>
+<main class="container narrow">
+    <a class="back-link" href="{{ url_for('home') }}">← Back to dashboard</a>
 
-        <button type="submit" class="btn primary submit-btn">
-            Analyse Video →
-        </button>
-    </form>
+    <section class="page-heading">
+        <p class="eyebrow">VIDEO CLASSIFICATION</p>
+        <h1>Analyse a video</h1>
+        <p>Upload a video containing waste items. EcoSort AI samples frames and classifies the visible items.</p>
+    </section>
 
-    <div class="note">
-        <strong>Note:</strong> Video analysis uses selected frames.
-        Results depend on the quality and visibility of the waste items.
-        This system classifies one visible item at a time; it is not
-        a multi-object detection system.
-    </div>
-</section>
+    <section class="panel">
+        <form action="{{ url_for('video') }}" method="POST" enctype="multipart/form-data">
+            <label class="upload-box" for="video">
+                <span class="upload-icon">🎥</span>
+                <strong>Select a video</strong>
+                <span>Choose a video file from your device</span>
+                <input type="file" id="video" name="video" accept="video/*" required>
+            </label>
 
-<footer>
-    <h3>♻ EcoSort AI</h3>
-    <p>Smart classification for a cleaner future.</p>
-</footer>
+            <p id="video-name" class="muted">No video selected.</p>
+            <video id="video-preview" controls class="video-preview" hidden></video>
 
+            <button type="submit" class="btn btn-primary btn-full">Analyse Video</button>
+        </form>
+    </section>
+
+    <section class="info-panel">
+        <h3>Video analysis</h3>
+        <p class="muted">The application analyses selected frames, not every frame of the video. Results depend on image quality, lighting and how clearly the waste item is visible.</p>
+    </section>
+</main>
+
+<script>
+const videoInput = document.getElementById("video");
+videoInput.addEventListener("change", function () {
+    const file = this.files[0];
+    const preview = document.getElementById("video-preview");
+    document.getElementById("video-name").textContent =
+        file ? file.name : "No video selected.";
+    if (file) {
+        preview.src = URL.createObjectURL(file);
+        preview.hidden = false;
+    } else {
+        preview.hidden = true;
+    }
+});
+</script>
 </body>
 </html>

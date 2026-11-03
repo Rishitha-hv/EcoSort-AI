@@ -1,93 +1,80 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Classification | EcoSort AI</title>
+    <title>Upload Image | EcoSort AI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        .upload-section {
-            max-width: 750px;
-            margin: 65px auto;
-            padding: 40px;
-            background: white;
-            border-radius: 18px;
-            box-shadow: 0 8px 35px rgba(0,0,0,.06);
-        }
-        .upload-section h1 { color: #193c2a; margin-bottom: 12px; }
-        .upload-section > p { color: #748178; margin-bottom: 28px; }
-        .upload-box {
-            border: 2px dashed #8bbd98;
-            background: #f5fbf5;
-            padding: 45px 20px;
-            text-align: center;
-            border-radius: 14px;
-        }
-        .upload-box .symbol { font-size: 48px; }
-        .upload-box p { color: #637368; margin: 12px 0; }
-        .upload-box input { margin-top: 15px; max-width: 100%; }
-        .submit-btn {
-            border: 0;
-            cursor: pointer;
-            margin-top: 25px;
-            width: 100%;
-            font-size: 16px;
-        }
-        .supported {
-            margin-top: 20px;
-            font-size: 13px;
-            color: #87938a;
-            text-align: center;
-        }
-    </style>
 </head>
 <body>
+<header class="site-header">
+    <a class="brand" href="{{ url_for('home') }}">
+        <span class="brand-mark">♻</span>
+        <span>EcoSort <b>AI</b></span>
+    </a>
 
-<nav class="navbar">
-    <a href="/" class="logo">♻ EcoSort <span>AI</span></a>
-    <div class="nav-links">
-        <a href="/">Home</a>
-        <a href="/classify">Image</a>
-        <a href="/video">Video</a>
-        <a href="/camera">Camera</a>
-        <a href="/history">History</a>
-        <a href="/reports">Reports</a>
-    </div>
-</nav>
+    <button class="menu-toggle"
+            onclick="document.querySelector('.main-nav').classList.toggle('open')">
+        ☰
+    </button>
 
-<section class="upload-section">
-    <span class="tag">AI WASTE IDENTIFICATION</span>
-    <h1>Image Classification</h1>
-    <p>Upload a picture of one waste item. EcoSort AI will predict its category.</p>
+    <nav class="main-nav">
+        <a href="{{ url_for('home') }}">Home</a>
+        <a href="{{ url_for('classify') }}">Classify</a>
+        <a href="{{ url_for('history') }}">History</a>
+        <a href="{{ url_for('reports') }}">Report</a>
+    </nav>
+</header>
 
-    <form action="/classify" method="POST" enctype="multipart/form-data">
-        <div class="upload-box">
-            <div class="symbol">📤</div>
-            <h3>Select a Waste Image</h3>
-            <p>Choose a JPG, JPEG or PNG image from your device.</p>
-            <input
-                type="file"
-                name="image"
-                accept=".jpg,.jpeg,.png"
-                required
-            >
+<main class="container narrow">
+    <a class="back-link" href="{{ url_for('home') }}">← Back to dashboard</a>
+
+    <section class="page-heading">
+        <p class="eyebrow">IMAGE CLASSIFICATION</p>
+        <h1>Upload a waste image</h1>
+        <p>Select a clear image containing one waste item. The AI will classify it into one of four categories.</p>
+    </section>
+
+    <section class="panel">
+        <form action="{{ url_for('classify') }}" method="POST" enctype="multipart/form-data">
+            <label class="upload-box" for="image">
+                <span class="upload-icon">📁</span>
+                <strong>Choose an image</strong>
+                <span>Click to browse JPG, JPEG or PNG files</span>
+                <input type="file" id="image" name="image" accept="image/*" required>
+            </label>
+
+            <div id="preview-container" class="preview-container" hidden>
+                <img id="image-preview" alt="Selected image preview">
+                <p id="file-name"></p>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">Analyse Image</button>
+        </form>
+    </section>
+
+    <section class="info-panel">
+        <h3>Supported categories</h3>
+        <div class="category-tags">
+            <span>Glass</span><span>Metal</span><span>Paper</span><span>Plastic</span>
         </div>
+        <p class="muted">If the image does not match the trained categories or the prediction is uncertain, the result may be Unknown Item.</p>
+    </section>
+</main>
 
-        <button type="submit" class="btn primary submit-btn">
-            Analyse Image →
-        </button>
-    </form>
-
-    <div class="supported">
-        Supported categories: Cardboard · Food · Glass · Metal · Paper · Plastic
-    </div>
-</section>
-
-<footer>
-    <h3>♻ EcoSort AI</h3>
-    <p>Smart classification for a cleaner future.</p>
-</footer>
-
+<script>
+const imageInput = document.getElementById("image");
+imageInput.addEventListener("change", function () {
+    const file = this.files[0];
+    const container = document.getElementById("preview-container");
+    if (!file) {
+        container.hidden = true;
+        return;
+    }
+    document.getElementById("image-preview").src = URL.createObjectURL(file);
+    document.getElementById("file-name").textContent = file.name;
+    container.hidden = false;
+});
+</script>
 </body>
 </html>

@@ -1,128 +1,124 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EcoSort AI | Smart Waste Classification</title>
+    <title>EcoSort AI | Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+<header class="site-header">
+    <a class="brand" href="{{ url_for('home') }}">
+        <span class="brand-mark">♻</span>
+        <span>EcoSort <b>AI</b></span>
+    </a>
 
-<nav class="navbar">
-    <a href="/" class="logo">♻ EcoSort <span>AI</span></a>
+    <button class="menu-toggle"
+            onclick="document.querySelector('.main-nav').classList.toggle('open')">
+        ☰
+    </button>
 
-    <div class="nav-links">
-        <a href="/">Home</a>
-        <a href="/classify">Image</a>
-        <a href="/video">Video</a>
-        <a href="/camera">Camera</a>
-        <a href="/history">History</a>
-        <a href="/reports">Reports</a>
-    </div>
-</nav>
-
-<header class="hero">
-    <div class="hero-content">
-        <span class="tag">AI POWERED WASTE MANAGEMENT</span>
-
-        <h1>Make Waste Sorting<br>
-            <span>Smarter with AI.</span>
-        </h1>
-
-        <p>
-            EcoSort AI uses deep learning and computer vision to
-            identify waste materials and help promote a cleaner,
-            greener environment.
-        </p>
-
-        <div class="hero-buttons">
-            <a href="/classify" class="btn primary">Start Classification →</a>
-            <a href="/reports" class="btn secondary">View Reports</a>
-        </div>
-
-        <div class="features">
-            <div>
-                <h3>06</h3>
-                <p>Waste Categories</p>
-            </div>
-            <div>
-                <h3>AI</h3>
-                <p>Deep Learning</p>
-            </div>
-            <div>
-                <h3>24/7</h3>
-                <p>Web Access</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="hero-visual">
-        <div class="recycle-icon">♻</div>
-        <h2>Think Green.<br>Sort Smart.</h2>
-        <p>Technology for a sustainable tomorrow.</p>
-    </div>
+    <nav class="main-nav">
+        <a href="{{ url_for('home') }}">Home</a>
+        <a href="{{ url_for('classify') }}">Classify</a>
+        <a href="{{ url_for('history') }}">History</a>
+        <a href="{{ url_for('reports') }}">Report</a>
+    </nav>
 </header>
 
-<section class="section">
-    <div class="section-heading">
-        <span class="tag">OUR FEATURES</span>
-        <h2>Explore EcoSort AI</h2>
-        <p>Choose how you want to analyse your waste.</p>
-    </div>
+<main class="container">
+    <section class="hero">
+        <div>
+            <p class="eyebrow">SMART WASTE CLASSIFICATION</p>
+            <h1>Make waste sorting <span>smarter.</span></h1>
+            <p>Upload an image, use your camera, or analyse a video to identify waste materials with AI.</p>
+            <a class="btn btn-primary" href="{{ url_for('classify') }}">Start Classification</a>
+        </div>
+        <div class="hero-icon">♻</div>
+    </section>
 
-    <div class="feature-grid">
-
-        <a href="/classify" class="feature-card">
-            <div class="card-icon">📷</div>
-            <h3>Image Classification</h3>
-            <p>Upload an image and identify its waste category using AI.</p>
-            <span>Try Now →</span>
-        </a>
-
-        <a href="/video" class="feature-card">
-            <div class="card-icon">🎬</div>
-            <h3>Video Analysis</h3>
-            <p>Analyse video frames to classify waste materials.</p>
-            <span>Explore →</span>
-        </a>
-
-        <a href="/camera" class="feature-card">
-            <div class="card-icon">📸</div>
-            <h3>Camera Capture</h3>
-            <p>Capture an image using your camera for classification.</p>
-            <span>Open Camera →</span>
-        </a>
-
-        <a href="/history" class="feature-card">
-            <div class="card-icon">📋</div>
-            <h3>Classification History</h3>
-            <p>Review your previous waste classification results.</p>
-            <span>View History →</span>
-        </a>
-
-        <a href="/reports" class="feature-card">
-            <div class="card-icon">📊</div>
-            <h3>Reports & Analytics</h3>
-            <p>Explore classification statistics and waste category counts.</p>
-            <span>View Reports →</span>
-        </a>
-
-        <div class="feature-card">
-            <div class="card-icon">🌱</div>
-            <h3>Eco-Friendly Technology</h3>
-            <p>Support responsible waste management through AI technology.</p>
-            <span>Learn More</span>
+    <section class="section">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">GET STARTED</p>
+                <h2>Choose an input method</h2>
+            </div>
         </div>
 
+        <div class="feature-grid">
+            <a class="feature-card" href="{{ url_for('classify') }}">
+                <div class="feature-icon">📷</div>
+                <h3>Upload Image</h3>
+                <p>Choose an image from your device and classify the waste item.</p>
+                <span class="card-link">Upload image →</span>
+            </a>
+
+            <a class="feature-card" href="{{ url_for('camera') }}">
+                <div class="feature-icon">📸</div>
+                <h3>Live Camera</h3>
+                <p>Capture an image using your device camera for classification.</p>
+                <span class="card-link">Open camera →</span>
+            </a>
+
+            <a class="feature-card" href="{{ url_for('video') }}">
+                <div class="feature-icon">🎥</div>
+                <h3>Upload Video</h3>
+                <p>Analyse sampled video frames to identify waste items.</p>
+                <span class="card-link">Upload video →</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">SUPPORTED MATERIALS</p>
+                <h2>Four waste categories</h2>
+            </div>
+        </div>
+
+        
+<div class="feature-grid">
+
+    <div class="feature-card">
+        <div class="card-icon glass">🍾</div>
+        <h3>Glass Waste</h3>
+        <p>Identifies glass bottles, jars and other recyclable glass materials.</p>
+        <span>AI Classification</span>
     </div>
-</section>
 
-<footer>
-    <h3>♻ EcoSort AI</h3>
-    <p>AI-powered waste classification for a cleaner future.</p>
-    <p class="copyright">© 2026 EcoSort AI. All rights reserved.</p>
-</footer>
+    <div class="feature-card">
+        <div class="card-icon metal">🥫</div>
+        <h3>Metal Waste</h3>
+        <p>Recognizes metal cans and other recyclable metal materials.</p>
+        <span>AI Classification</span>
+    </div>
 
+    <div class="feature-card">
+        <div class="card-icon paper">📄</div>
+        <h3>Paper Waste</h3>
+        <p>Classifies paper sheets, newspapers and other paper products.</p>
+        <span>AI Classification</span>
+    </div>
+
+    <div class="feature-card">
+        <div class="card-icon plastic">♻️</div>
+        <h3>Plastic Waste</h3>
+        <p>Detects plastic bottles, containers and recyclable plastic materials.</p>
+        <span>AI Classification</span>
+    </div>
+
+</div>
+
+        <p class="muted">Items outside these four trained categories may be returned as Unknown Item.</p>
+    </section>
+
+    <section class="quick-links">
+        <a href="{{ url_for('history') }}">View classification history →</a>
+        <a href="{{ url_for('reports') }}">View reports →</a>
+    </section>
+</main>
+
+<footer class="footer">EcoSort AI · AI-powered waste classification</footer>
 </body>
 </html>

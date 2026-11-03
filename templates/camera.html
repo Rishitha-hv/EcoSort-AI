@@ -1,372 +1,109 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>USB Camera | EcoSort AI</title>
-
+    <title>Live Camera | EcoSort AI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
-    <style>
-        .camera-section {
-            max-width: 800px;
-            margin: 45px auto;
-            padding: 30px;
-            background: white;
-            border-radius: 18px;
-            box-shadow: 0 8px 35px rgba(0,0,0,.06);
-        }
-
-        .camera-section h1 {
-            color: #193c2a;
-            margin: 14px 0;
-        }
-
-        .camera-section > p {
-            color: #748178;
-            margin-bottom: 25px;
-        }
-
-        .camera-box {
-            background: #f5faf5;
-            border: 2px dashed #8bbd98;
-            border-radius: 14px;
-            padding: 20px;
-            text-align: center;
-        }
-
-        video, canvas {
-            width: 100%;
-            max-height: 420px;
-            object-fit: contain;
-            border-radius: 10px;
-            background: #e7eee8;
-            margin-top: 15px;
-        }
-
-        canvas {
-            display: none;
-        }
-
-        .camera-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-top: 20px;
-        }
-
-        button {
-            border: none;
-            cursor: pointer;
-        }
-
-        button:disabled {
-            opacity: .5;
-            cursor: not-allowed;
-        }
-
-        .submit-btn {
-            width: 100%;
-            margin-top: 20px;
-            font-size: 16px;
-        }
-
-        .message {
-            color: #637368;
-            margin-top: 15px;
-            font-size: 14px;
-        }
-
-        .preview-title {
-            margin-top: 20px;
-            color: #193c2a;
-            font-weight: bold;
-        }
-    </style>
 </head>
-
 <body>
+<header class="site-header">
+    <a class="brand" href="{{ url_for('home') }}">
+        <span class="brand-mark">♻</span>
+        <span>EcoSort <b>AI</b></span>
+    </a>
 
-<nav class="navbar">
-    <a href="/" class="logo">♻ EcoSort <span>AI</span></a>
+    <button class="menu-toggle"
+            onclick="document.querySelector('.main-nav').classList.toggle('open')">
+        ☰
+    </button>
 
-    <div class="nav-links">
-        <a href="/">Home</a>
-        <a href="/classify">Image</a>
-        <a href="/video">Video</a>
-        <a href="/camera">Camera</a>
-        <a href="/history">History</a>
-        <a href="/reports">Reports</a>
-    </div>
-</nav>
+    <nav class="main-nav">
+        <a href="{{ url_for('home') }}">Home</a>
+        <a href="{{ url_for('classify') }}">Classify</a>
+        <a href="{{ url_for('history') }}">History</a>
+        <a href="{{ url_for('reports') }}">Report</a>
+    </nav>
+</header>
 
-<section class="camera-section">
+<main class="container narrow">
+    <a class="back-link" href="{{ url_for('home') }}">← Back to dashboard</a>
 
-    <span class="tag">EXTERNAL USB WEBCAM</span>
+    <section class="page-heading">
+        <p class="eyebrow">CAMERA CLASSIFICATION</p>
+        <h1>Capture a waste item</h1>
+        <p>Allow camera access, position one waste item in view, and capture an image.</p>
+    </section>
 
-    <h1>Waste Classification Camera</h1>
+    <section class="panel camera-panel">
+        <video id="camera-video" autoplay playsinline></video>
+        <canvas id="camera-canvas" hidden></canvas>
 
-    <p>
-        Connect your USB webcam, position one waste item in front
-        of the camera, and capture an image for AI classification.
-    </p>
+        <form action="{{ url_for('camera') }}" method="POST" id="camera-form">
+            <input type="hidden" name="camera_image" id="camera-image">
+            <div class="button-row">
+                <button type="button" class="btn btn-secondary" id="start-camera">Start Camera</button>
+                <button type="button" class="btn btn-secondary" id="capture-button" disabled>Capture Photo</button>
+                <button type="submit" class="btn btn-primary" id="analyse-button" disabled>Analyse Photo</button>
+            </div>
+        </form>
 
-    <div class="camera-box">
-
-        <video id="camera" autoplay playsinline muted></video>
-
-        <canvas id="canvas"></canvas>
-
-        <div class="camera-buttons">
-
-            <button type="button"
-                    id="startCamera"
-                    class="btn primary">
-                Start USB Camera
-            </button>
-
-            <button type="button"
-                    id="capture"
-                    class="btn secondary"
-                    disabled>
-                Capture Photo
-            </button>
-
-            <button type="button"
-                    id="stopCamera"
-                    class="btn secondary"
-                    disabled>
-                Stop Camera
-            </button>
-
-        </div>
-
-        <p id="message" class="message">
-            Connect your USB webcam and click Start USB Camera.
-        </p>
-
-        <p id="previewTitle" class="preview-title" hidden>
-            Captured Image Preview
-        </p>
-
-    </div>
-
-    <form action="{{ url_for('camera') }}"
-          method="POST"
-          id="cameraForm">
-
-        <input type="hidden"
-               name="camera_image"
-               id="cameraImage">
-
-        <button type="submit"
-                class="btn primary submit-btn"
-                id="analyse"
-                disabled>
-            Capture & Analyse Waste →
-        </button>
-
-    </form>
-
-</section>
-
-<footer>
-    <h3>♻ EcoSort AI</h3>
-    <p>Smart classification for a cleaner future.</p>
-</footer>
+        <p id="camera-message" class="muted">Click Start Camera to begin.</p>
+        <img id="captured-preview" class="captured-preview" alt="Captured image" hidden>
+    </section>
+</main>
 
 <script>
+const video = document.getElementById("camera-video");
+const canvas = document.getElementById("camera-canvas");
+const imageField = document.getElementById("camera-image");
+const startButton = document.getElementById("start-camera");
+const captureButton = document.getElementById("capture-button");
+const analyseButton = document.getElementById("analyse-button");
+const message = document.getElementById("camera-message");
+const preview = document.getElementById("captured-preview");
 
-const video = document.getElementById("camera");
-const canvas = document.getElementById("canvas");
+let cameraStream = null;
 
-const startButton = document.getElementById("startCamera");
-const captureButton = document.getElementById("capture");
-const stopButton = document.getElementById("stopCamera");
-const analyseButton = document.getElementById("analyse");
-
-const cameraImage = document.getElementById("cameraImage");
-const message = document.getElementById("message");
-const previewTitle = document.getElementById("previewTitle");
-
-let stream = null;
-let captured = false;
-
-async function startCamera() {
-
+startButton.addEventListener("click", async () => {
     try {
-
-        if (!navigator.mediaDevices ||
-            !navigator.mediaDevices.getUserMedia) {
-
-            throw new Error(
-                "Camera access is unavailable. Open the website using localhost or HTTPS."
-            );
-        }
-
-        // Stop an existing camera before selecting another.
-        stopCamera();
-
-        message.textContent = "Searching for available cameras...";
-
-        // Prefer an external USB webcam if available.
-        const devices = await navigator.mediaDevices.enumerateDevices();
-
-        const cameras = devices.filter(
-            device => device.kind === "videoinput"
-        );
-
-        const usbCamera = cameras.find(
-            device => /usb|external/i.test(device.label)
-        );
-
-        let videoConstraints;
-
-        if (usbCamera) {
-
-            videoConstraints = {
-                deviceId: { exact: usbCamera.deviceId },
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            };
-
-        } else {
-
-            // If no USB label is available, use the browser's camera selection.
-            videoConstraints = {
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            };
-        }
-
-        stream = await navigator.mediaDevices.getUserMedia({
-            video: videoConstraints,
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment" },
             audio: false
         });
-
-        video.srcObject = stream;
-
-        await video.play();
-
+        video.srcObject = cameraStream;
         captureButton.disabled = false;
-        stopButton.disabled = false;
-        startButton.disabled = true;
-
-        analyseButton.disabled = true;
-        cameraImage.value = "";
-        captured = false;
-
-        canvas.style.display = "none";
-        previewTitle.hidden = true;
-
-        message.textContent =
-            "Camera started successfully. Position one waste item and capture.";
-
+        message.textContent = "Camera is ready. Position the item and capture it.";
     } catch (error) {
-
-        console.error("Camera error:", error);
-
-        message.textContent =
-            "Camera error: " + error.message +
-            ". Check USB connection and browser camera permission.";
-
+        message.textContent = "Unable to access the camera. Check browser permissions.";
     }
-}
+});
 
-function capturePhoto() {
-
-    if (!stream || !video.videoWidth) {
-
-        message.textContent =
-            "Camera is not ready. Please start the camera again.";
-
+captureButton.addEventListener("click", () => {
+    if (!video.videoWidth) {
+        message.textContent = "Wait for the camera to start.";
         return;
     }
-
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-
-    const context = canvas.getContext("2d");
-
-    context.drawImage(
-        video,
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    );
-
-    // Convert captured frame into Base64 JPEG.
-    const imageData = canvas.toDataURL("image/jpeg", 0.90);
-
-    cameraImage.value = imageData;
-
-    captured = true;
-
-    canvas.style.display = "block";
-    previewTitle.hidden = false;
-
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    imageField.value = dataUrl;
+    preview.src = dataUrl;
+    preview.hidden = false;
     analyseButton.disabled = false;
+    message.textContent = "Photo captured. Click Analyse Photo.";
+});
 
-    message.textContent =
-        "Photo captured successfully! Click Capture & Analyse Waste.";
-}
-
-function stopCamera() {
-
-    if (stream) {
-
-        stream.getTracks().forEach(track => track.stop());
-
-        stream = null;
+document.getElementById("camera-form").addEventListener("submit", () => {
+    if (!imageField.value) {
+        message.textContent = "Capture a photo before analysing.";
     }
+});
 
-    video.srcObject = null;
-
-    captureButton.disabled = true;
-    stopButton.disabled = true;
-    startButton.disabled = false;
-
-    message.textContent = captured
-        ? "Camera stopped. Your captured image is ready for analysis."
-        : "Camera stopped.";
-
-}
-
-startButton.addEventListener("click", startCamera);
-
-captureButton.addEventListener("click", capturePhoto);
-
-stopButton.addEventListener("click", stopCamera);
-
-document.getElementById("cameraForm").addEventListener(
-    "submit",
-    function(event) {
-
-        if (!cameraImage.value) {
-
-            event.preventDefault();
-
-            message.textContent =
-                "Please capture an image before analysing.";
-
-            return;
-        }
-
-        stopCamera();
-
-        message.textContent =
-            "Uploading image and analysing with EcoSort AI...";
-
-        analyseButton.disabled = true;
-    }
-);
-
-window.addEventListener("beforeunload", stopCamera);
-
+window.addEventListener("beforeunload", () => {
+    if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
+});
 </script>
-
 </body>
 </html>
